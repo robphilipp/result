@@ -224,11 +224,11 @@ describe('when combining a list of results into a single result', () => {
         expect(resultFromAll(result).getOrThrow()).toEqual(successResult([1,2,3,4,5]).getOrThrow())
     })
     it('should not combine all results into a result when one or more results are failures', () => {
-        const result: Array<Result<number, string>> = [...[1,2,3,4,5].map(successResult), failureResult('hmm')]
+        const result: Array<Result<number, string>> = [...[1,2,3,4,5].map(x => successResult<number, string>(x)), failureResult('hmm')]
         expect(resultFromAll(result).failed).toBeTruthy()
     })
     it('should combine all results into a result discarding failures failures', () => {
-        const result = [...[1,2,3,4,5].map(successResult), failureResult('hmm')]
+        const result: Array<Result<number, string>> = [...[1,2,3,4,5].map(x => successResult<number, string>(x)), failureResult('hmm')]
         expect(resultFromAny(result).succeeded).toBeTruthy()
         expect(resultFromAny(result).getOrThrow()).toEqual(successResult([1,2,3,4,5]).getOrThrow())
     })

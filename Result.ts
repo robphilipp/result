@@ -393,7 +393,7 @@ function onSuccess<S, F extends ToString>(handler: (value: S) => void, success?:
         try {
             handler(success)
         } catch (error) {
-            return errorMessageResult('Result.onSuccess handler threw an error', error)
+            return errorMessageResult('Result.onSuccess handler threw an error', error as Error)
         }
     }
     return resultFrom({success, failure})
@@ -415,7 +415,7 @@ function onFailure<S, F extends ToString>(handler: (error: F) => void, success?:
         try {
             handler(failure)
         } catch (error) {
-            return errorMessageResult('Result.onFailure handler threw an error', error)
+            return errorMessageResult('Result.onFailure handler threw an error', error as Error)
         }
     }
     return resultFrom({success, failure})
@@ -432,7 +432,7 @@ function onAlways<S, F extends ToString>(result: Result<S, F>, handler: () => vo
     try {
         handler()
     } catch (error) {
-        return errorMessageResult('Result.onAlways handler threw an error', error)
+        return errorMessageResult('Result.onAlways handler threw an error', error as Error)
     }
     return result
 }
@@ -595,7 +595,7 @@ export async function forEachPromise<V, S, F>(elems: Array<V>, handler: (elem: V
     } catch (reason) {
         // something went terribly wrong
         console.error("Result::forEachPromise failed to settle all results", reason)
-        return failureResult([reason])
+        return failureResult<S[], F[]>([reason as F])
     }
 }
 
