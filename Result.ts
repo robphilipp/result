@@ -99,7 +99,7 @@ export type Result<S, F extends ToString> = {
     /**
      * Changes the type of the result when the result is a failure. This is helpful when checking a
      * result for failure, and then need to return a result whose success type is different.
-     * @param A fallback failure in case the failure in the result is undefined
+     * @param fallback A fallback failure in case the failure in the result is undefined
      * @return A new failure result with the new success type
      */
     asFailureOf: <SP>(fallback: F) => Result<SP, F>
@@ -161,7 +161,7 @@ export type Result<S, F extends ToString> = {
      */
     getOrUndefined: () => S | undefined
     /**
-     * @return When this result is a success, then returns the value. Otherwise returns the specified
+     * @return When this result is a success, then returns the value. Otherwise, returns the specified
      * default value.
      * @see getOrUndefined
      * @see getOrThrow
@@ -169,7 +169,7 @@ export type Result<S, F extends ToString> = {
      */
     getOrDefault: (value: S) => S
     /**
-     * @return When this result is a success, then returns the value. Otherwise throws an error that
+     * @return When this result is a success, then returns the value. Otherwise, throws an error that
      * contains the error in this result.
      * @see getOrUndefined
      * @see getOrDefault
@@ -178,7 +178,7 @@ export type Result<S, F extends ToString> = {
     getOrThrow: () => S
 
     /**
-     * @return When this result is a failure, then returns the error. Otherwise returns `undefined`.
+     * @return When this result is a failure, then returns the error. Otherwise, returns `undefined`.
      * @see getOrUndefined
      * @see getOrDefault
      * @see getOrThrow
@@ -315,7 +315,11 @@ function mapValue<S, SP, F extends ToString>(mapper: (value: S) => SP, success?:
  * specified `next` function. Otherwise returns the failure wrapped in a {@link Result}.
  * @see mapValue
  */
-function thenValue<S, SP, F extends ToString>(next: (value: S) => Result<SP, F>, success?: S, failure?: F): Result<SP, F> {
+function thenValue<S, SP, F extends ToString>(
+    next: (value: S) => Result<SP, F>,
+    success?: S,
+    failure?: F
+): Result<SP, F> {
     return (success !== undefined ?
             next(success) :
             resultFrom({failure})
@@ -332,13 +336,23 @@ function thenValue<S, SP, F extends ToString>(next: (value: S) => Result<SP, F>,
  * @return A {@link Result} that holds the mapped failure value (which `failure` is defined) or the
  * success when `failure` is not defined
  */
-function mapFailure<S, F extends ToString, FP extends ToString>(mapper: (failure: F) => FP, success?: S, failure?: F): Result<S, FP> {
+function mapFailure<S, F extends ToString, FP extends ToString>(
+    mapper: (failure: F) => FP,
+    success?: S,
+    failure?: F
+): Result<S, FP> {
     return (failure !== undefined ?
             failureResult(mapper(failure)) :
             resultFrom({success})
     ) as Result<S, FP>
 }
 
+/**
+ * Changes the type of the result when the result is a failure. This is helpful when checking a
+ * result for failure, and then need to return a result whose success type is different.
+ * @param failure A fallback failure in case the failure in the result is undefined
+ * @return A new failure result with the new success type
+ */
 function asFailure<SP, F extends ToString>(failure: F): Result<SP, F> {
     return failureResult<SP, F>(failure)
 }
@@ -541,7 +555,10 @@ export function forEachResult<SI, FI extends ToString, SO, FO extends ToString>(
  * @param handler The operation that accepts an element and returns a {@link Result}
  * @return A {@link Result} wrapping the array of success values, or failure values.
  */
-export function forEachElement<V, S, F extends ToString>(elems: Array<V>, handler: (elem: V) => Result<S, F>): Result<Array<S>, Array<F>> {
+export function forEachElement<V, S, F extends ToString>(
+    elems: Array<V>,
+    handler: (elem: V) => Result<S, F>
+): Result<Array<S>, Array<F>> {
     const results = elems.map(elem => handler(elem))
     const successes = results.filter(result => result.succeeded).length
     if (successes !== results.length) {
@@ -572,7 +589,10 @@ export function forEachElement<V, S, F extends ToString>(elems: Array<V>, handle
  * @param handler The function that returns a {@link Result} for a specified value
  * @return a {@link Promise} to a {@link Result} holding an array of successes, or an array of failures.
  */
-export async function forEachPromise<V, S, F>(elems: Array<V>, handler: (elem: V) => Promise<Result<S, F>>): Promise<Result<Array<S>, Array<F>>> {
+export async function forEachPromise<V, S, F>(
+    elems: Array<V>,
+    handler: (elem: V) => Promise<Result<S, F>>
+): Promise<Result<Array<S>, Array<F>>> {
     const results = elems.map(elem => handler(elem))
     try {
         // wait until all the promises have settled as resolved or rejected

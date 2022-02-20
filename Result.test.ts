@@ -161,20 +161,20 @@ describe('when creating a Result', () => {
     it('should skip onFailure when result is a success', () => {
         let message = ""
         const result = successResult("success!")
-            .onFailure(error => message = "as my mom said, i am a failure")
-            .onSuccess(value => message = "i succeeded! eff y'all for doubting me")
-            .onFailure(error => message = "as my mom said, i am a failure (2)")
-        expect(message).toEqual("i succeeded! eff y'all for doubting me")
+            .onFailure(() => message = "failed")
+            .onSuccess(() => message = "succeeded")
+            .onFailure(() => message = "failed again")
+        expect(message).toEqual("succeeded")
         expect(result.getOrUndefined()).toEqual("success!")
     })
 
     it('should skip onSuccess when result is a failure', () => {
         let message = ""
         const result = failureResult("failed!")
-            .onSuccess(value => message = "i succeeded! eff y'all for doubting me")
-            .onFailure(error => message = "as my mom said, i am a failure")
-            .onSuccess(value => message = "i succeeded! eff y'all for doubting me")
-        expect(message).toEqual("as my mom said, i am a failure")
+            .onSuccess(() => message = "success")
+            .onFailure(() => message = "failed")
+            .onSuccess(() => message = "success again")
+        expect(message).toEqual("failed")
         expect(result.error).toEqual("failed!")
     })
 })
@@ -236,7 +236,7 @@ describe('when combining a list of results into a single result', () => {
 
 describe('when using promises', () => {
     it('should convert a result wrapping a promise to promise wrapping a result', async () => {
-        const result = successResult<Promise<Result<string, string>>, string>(new Promise((resolve, reject) => {
+        const result = successResult<Promise<Result<string, string>>, string>(new Promise((resolve, ) => {
             setTimeout(() => {
                 resolve(successResult('yep'))
             }, 300)
@@ -247,7 +247,7 @@ describe('when using promises', () => {
     })
 
     it('should be able to convert an array of elements when all promises succeed', async () => {
-        const results = await forEachPromise([1,2,3,4,5], elem => new Promise<Result<number, string>>((resolve, reject) => {
+        const results = await forEachPromise([1,2,3,4,5], elem => new Promise<Result<number, string>>((resolve, ) => {
             setTimeout(() => {
                 resolve(successResult(elem * 2))
             }, 300)
