@@ -115,6 +115,10 @@ Yeah! A bunch of if-statements. The code is much less concise and harder to unde
 
 ## what else?
 
+`Result` provides a declarative way to chain together a series of operations, any of which could fail or succeed. The series of operations are laid out clearly, without all the error handling code that would otherwise be needed.
+
+`Result` provides a consistent and explicit way of dealing with the fact that some operations could fail. Each function that returns a `Result` announces that its operation may fail and that the caller must deal with it (or continue to chain results). In order for the caller of the function to get the result, it must deal with the fact that it could have failed. 
+
 
 ## usage patterns
 

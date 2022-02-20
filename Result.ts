@@ -1,4 +1,4 @@
-interface ToString {
+export interface ToString {
     toString: () => string
 }
 

@@ -1,2 +1,8 @@
-export type {SetWithOps, WithOps} from './sets';
-export {emptySet, setFrom, enumerateCombinations} from './sets';
+export type {ToString, Result} from './Result';
+export {
+    successResult, failureResult,
+    resultFromAll, resultFromAny,
+    forEachResult, forEachElement,
+    forEachPromise,
+    reduceToResult
+} from './Result';
