@@ -118,27 +118,46 @@ Yeah! A bunch of if-statements. The code is much less concise and harder to unde
 
 ## usage patterns
 
-A basic result for use when an operation that returns a result can either succeed or fail.
-Instead of throwing an exception or returning `undefined` when the operation fails, the {@link Result}
-can be marked as a failure, and an error object can be returned describing the reason for the failure. When
-the operation succeeds, the {@link Result} can be marked as a success, and it then holds the
-result of the operation.
+[//]: # (A basic result for use when an operation that returns a result can either succeed or fail.)
 
-Additionally, it provides the chaining of results through {@link Result.map} and {@link Result.andThen}.
-The {@link reduceToResult} is a reducing function that combine a set of {@link Result}-producing
-operations into one {@link Result} that is a success iff all the operations are a success. And the
-{@link forEachResult} accepts a set of {@link Result}s and combines them into one result that is a
-success iff all the {@link Result}s are a success.
+[//]: # (Instead of throwing an exception or returning `undefined` when the operation fails, the {@link Result})
 
-When writing functions that return a {@link Result}, use the {@link successResult} function to create
-a success {@link Result}. And use the {@link failureResult} function to create a, you guessed it, ad
-failure {@link Result}.
+[//]: # (can be marked as a failure, and an error object can be returned describing the reason for the failure. When)
 
-The {@link Result.succeeded} and {@link Result.failed} properties of a result report whether the
-is a success or failure.
+[//]: # (the operation succeeds, the {@link Result} can be marked as a success, and it then holds the)
 
-The {@link Result.getOrUndefined} method returns a value on a success, or `undefined` on a failure.
-The {@link Result.getOrDefault} method returns the value on a success, or the specified value when
-the {@link Result} is a failure. And the {@link Result.getOrThrow} returns the value on a success, and
-throws an error, with the error value, on a failure. Although the {@link Result.value} is available,
-I encourage you not to use it directly, but rather use the above-mentioned accessor methods.
+[//]: # (result of the operation.)
+
+[//]: # ()
+[//]: # (Additionally, it provides the chaining of results through {@link Result.map} and {@link Result.andThen}.)
+
+[//]: # (The {@link reduceToResult} is a reducing function that combine a set of {@link Result}-producing)
+
+[//]: # (operations into one {@link Result} that is a success iff all the operations are a success. And the)
+
+[//]: # ({@link forEachResult} accepts a set of {@link Result}s and combines them into one result that is a)
+
+[//]: # (success iff all the {@link Result}s are a success.)
+
+[//]: # ()
+[//]: # (When writing functions that return a {@link Result}, use the {@link successResult} function to create)
+
+[//]: # (a success {@link Result}. And use the {@link failureResult} function to create a, you guessed it, ad)
+
+[//]: # (failure {@link Result}.)
+
+[//]: # ()
+[//]: # (The {@link Result.succeeded} and {@link Result.failed} properties of a result report whether the)
+
+[//]: # (is a success or failure.)
+
+[//]: # ()
+[//]: # (The {@link Result.getOrUndefined} method returns a value on a success, or `undefined` on a failure.)
+
+[//]: # (The {@link Result.getOrDefault} method returns the value on a success, or the specified value when)
+
+[//]: # (the {@link Result} is a failure. And the {@link Result.getOrThrow} returns the value on a success, and)
+
+[//]: # (throws an error, with the error value, on a failure. Although the {@link Result.value} is available,)
+
+[//]: # (I encourage you not to use it directly, but rather use the above-mentioned accessor methods.)
