@@ -69,7 +69,7 @@ Next we attempt to divide 100 by 10, which result in 10, and then divide that by
 
 What happens when the divisor is 0? In that case, the second and third callbacks are skipped and `result2` is a failure `Result` holding the reason for the failure. This can be seen from the console log for result2.
 
-Let's rewrite the example with the `Result` object.
+Let's rewrite the previous example without the `Result`.
 
 ```ts
 /**
