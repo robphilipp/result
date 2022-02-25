@@ -52,7 +52,21 @@ describe('when creating a Result', () => {
         expect(result.failed).toBeTruthy()
         expect(result.succeeded).toBeFalsy()
         expect(result.getOrUndefined()).toBeUndefined()
+        expect(result.error).toBe("failed to work, but didn't")
         expect(() => result.getOrThrow()).toThrowError("failed to work, but didn't")
+    })
+
+    it('should be able to filter success result with met predicate', () => {
+        const result = successResult(5).filter(value => value === 5)
+        expect(result.succeeded).toBeTruthy()
+        expect(result.getOrThrow()).toBe(5)
+    })
+
+    it('should be able to filter success with unmet predicate', () => {
+        const result = successResult<number, string>(5).filter(value => value % 2 === 0, () => 'must be odd')
+        expect(result.failed).toBeTruthy()
+        expect(result.error).toBe('must be odd')
+        // expect(result.error?.toString()).toBe('Predicate not satisfied')
     })
 
     it('should be able to flat-map values for successful result', () => {
@@ -83,8 +97,8 @@ describe('when creating a Result', () => {
         ]
         const combined = forEachResult<string, string, number, string>(
             results,
-                result => result.map(value => value.split(" ").length)
-    )
+            result => result.map(value => value.split(" ").length)
+        )
         expect(combined.succeeded).toBeTruthy()
         expect(combined.failed).toBeFalsy()
         expect(combined.getOrUndefined()).toBeDefined()
@@ -200,17 +214,17 @@ describe('when comparing results', () => {
 describe('when combining a list of results into a single result', () => {
     it('should be able to return the successes', () => {
         const result = forEachElement(
-            [1,2,3,4,5],
+            [1, 2, 3, 4, 5],
             elem => successResult(2 * elem)
         )
         expect(result.succeeded).toBeTruthy()
         expect(result.getOrDefault([]).length).toBe(5)
-        expect(result.getOrDefault([])).toEqual([2,4,6,8,10])
+        expect(result.getOrDefault([])).toEqual([2, 4, 6, 8, 10])
     })
 
     it('should fail if any one fails', () => {
         const result = forEachElement(
-            [1,2,3,4,5],
+            [1, 2, 3, 4, 5],
             elem => elem === 3 ?
                 failureResult<number, string>("three sucks") :
                 successResult<number, string>(2 * elem)
@@ -220,23 +234,23 @@ describe('when combining a list of results into a single result', () => {
     })
 
     it('should combine all successful results into a new result', () => {
-        const result = [1,2,3,4,5].map(successResult)
-        expect(resultFromAll(result).getOrThrow()).toEqual(successResult([1,2,3,4,5]).getOrThrow())
+        const result = [1, 2, 3, 4, 5].map(successResult)
+        expect(resultFromAll(result).getOrThrow()).toEqual(successResult([1, 2, 3, 4, 5]).getOrThrow())
     })
     it('should not combine all results into a result when one or more results are failures', () => {
-        const result: Array<Result<number, string>> = [...[1,2,3,4,5].map(x => successResult<number, string>(x)), failureResult('hmm')]
+        const result: Array<Result<number, string>> = [...[1, 2, 3, 4, 5].map(x => successResult<number, string>(x)), failureResult('hmm')]
         expect(resultFromAll(result).failed).toBeTruthy()
     })
     it('should combine all results into a result discarding failures failures', () => {
-        const result: Array<Result<number, string>> = [...[1,2,3,4,5].map(x => successResult<number, string>(x)), failureResult('hmm')]
+        const result: Array<Result<number, string>> = [...[1, 2, 3, 4, 5].map(x => successResult<number, string>(x)), failureResult('hmm')]
         expect(resultFromAny(result).succeeded).toBeTruthy()
-        expect(resultFromAny(result).getOrThrow()).toEqual(successResult([1,2,3,4,5]).getOrThrow())
+        expect(resultFromAny(result).getOrThrow()).toEqual(successResult([1, 2, 3, 4, 5]).getOrThrow())
     })
 })
 
 describe('when using promises', () => {
     it('should convert a result wrapping a promise to promise wrapping a result', async () => {
-        const result = successResult<Promise<Result<string, string>>, string>(new Promise((resolve, ) => {
+        const result = successResult<Promise<Result<string, string>>, string>(new Promise((resolve,) => {
             setTimeout(() => {
                 resolve(successResult('yep'))
             }, 300)
@@ -247,17 +261,17 @@ describe('when using promises', () => {
     })
 
     it('should be able to convert an array of elements when all promises succeed', async () => {
-        const results = await forEachPromise([1,2,3,4,5], elem => new Promise<Result<number, string>>((resolve, ) => {
+        const results = await forEachPromise([1, 2, 3, 4, 5], elem => new Promise<Result<number, string>>((resolve,) => {
             setTimeout(() => {
                 resolve(successResult(elem * 2))
             }, 300)
         }))
 
-        expect(results.getOrThrow()).toEqual([2,4,6,8,10])
+        expect(results.getOrThrow()).toEqual([2, 4, 6, 8, 10])
     })
 
     it('should not be able to convert an array of elements when all promises do not succeed', async () => {
-        const results = await forEachPromise([1,2,3,4,5], elem => new Promise<Result<number, string>>((resolve, reject) => {
+        const results = await forEachPromise([1, 2, 3, 4, 5], elem => new Promise<Result<number, string>>((resolve, reject) => {
             setTimeout(() => {
                 if (elem % 2 === 0) {
                     resolve(successResult(elem / 2))

@@ -13,7 +13,7 @@ export interface ToString {
  * The {@link reduceToResult} is a reducing function that combine a set of {@link Result}-producing
  * operations into one {@link Result} that is a success iff all the operations are a success. And the
  * {@link forEachResult} accepts a set of {@link Result}s and combines them into one result that is a
- * success iff all the {@link Result}s are a success.
+ * success if, and only if, all the {@link Result}s are a success.
  *
  * When writing functions that return a {@link Result}, use the {@link successResult} function to create
  * a success {@link Result}. And use the {@link failureResult} function to create a, you guessed it, ad
@@ -88,6 +88,17 @@ export type Result<S, F extends ToString> = {
      * this result is a failure, then returns this result.
      */
     andThen: <SP>(next: (value: S) => Result<SP, F>) => Result<SP, F>
+    /**
+     * Applies the filter to the success value of this result and returns the result if it matches
+     * the filter predicate, or a failure if it doesn't match the predicate. When this result is a
+     * failure, then returns that failure.
+     * @param filter The filter predicate
+     * @param [failureProvider] Optional function that provides the failure when the success result
+     * does not match the predicate
+     * @return When this result is a success, then returns the success if it matches the predicate or
+     * a failure if it does not. When this result is a failure, then returns the failure.
+     */
+    filter: (filter: (value: S) => boolean, failureProvider?: () => F) => Result<S, F>
     /**
      * When this result is a failure, then applies the specified `mapper` function to the failure.
      * When the result is a success, then simply returns a copy of this result. This function is
@@ -252,6 +263,7 @@ function resultFrom<S, F extends ToString>(result: ResultType<S, F>): Result<S, 
 
         map: <SP>(mapper: (value: S) => SP) => mapValue(mapper, success, failure),
         andThen: <SP>(next: (value: S) => Result<SP, F>) => thenValue(next, success, failure),
+        filter: (filter: (value: S) => boolean, failureProvider?: () => F) => filterValue(filter, success, failure, failureProvider),
         mapFailure: <FP>(mapper: (failure: F) => FP) => mapFailure(mapper, success, failure),
         asFailureOf: <SP>(fallback: F) => asFailure<SP, F>(failure || fallback),
 
@@ -312,7 +324,7 @@ function mapValue<S, SP, F extends ToString>(mapper: (value: S) => SP, success?:
  * @param [success=undefined] The success value (which may be undefined)
  * @param [failure=undefined] The failure (which may be undefined)
  * @return When the specified `success` is defined, then returns the {@link Result} generated from the
- * specified `next` function. Otherwise returns the failure wrapped in a {@link Result}.
+ * specified `next` function. Otherwise, returns the failure wrapped in a {@link Result}.
  * @see mapValue
  */
 function thenValue<S, SP, F extends ToString>(
@@ -324,6 +336,32 @@ function thenValue<S, SP, F extends ToString>(
             next(success) :
             resultFrom({failure})
     ) as Result<SP, F>
+}
+
+/**
+ * When the specified `success` is defined, then applies the specified filter predicate to the value. When the
+ * value meets the predicate, then returns the success wrapped in a result. Otherwise, returns a failure result.
+ * @param filter The filter predicate
+ * @param success The success value
+ * @param failure The failure value
+ * @param [failureProvider] Optional function that provides the failure when the success result
+ * does not match the predicate
+ * @return A success {@link Result} when `success` is defined and the value meets the predicate; a failure
+ * otherwise
+ */
+function filterValue<S, F extends ToString>(
+    filter: (value: S) => boolean,
+    success?: S,
+    failure?: F,
+    failureProvider?: () => F
+): Result<S, F> {
+    if (success !== undefined) {
+        return filter(success) ?
+            resultFrom({success}) :
+            // failureResult({toString: () => "Predicate not satisfied"} as F)
+            failureResult(failureProvider ? failureProvider() : {toString: () => "Predicate not satisfied"} as F)
+    }
+    return resultFrom({failure})
 }
 
 /**
