@@ -43,33 +43,29 @@ function divide(dividend: number, divisor: number): Result<number, string> {
 
 // divide 100 by 10, then divide the result of that by 5, and then multiply 
 // that result by 5
-const result1 = divide(100, 10)
+divide(100, 10)
     .andThen(quotient => divide(quotient / 5))
     .map(quotient => Math.PI * quotient)
-
-// prints 2π = 6.283185307179586 (definitely better than one π)
-result1
+    // prints 2π = 6.283185307179586 (definitely better than one π)
     .onSuccess(value => console.log(`2π = ${value}`))
     .onFailure(reason => console.log(reason))
 
 // now let's attempt to divide by 0
-const result2 =  divide(100, 0)
+divide(100, 0)
     .andThen(quotient => divide(quotient, 5))
     .map(quotient => Math.PI * quotient)
-
-// prints "Can't divide by zero!"
-result2
     .onSuccess(value => console.log(`2π = ${value}`))
+    // prints "Can't divide by zero!"
     .onFailure(reason => console.log(reason))
 ```
 
-Right off the bat, the function signature tells the caller that it must handle the fact that the result could be a success or a failure. Also, the success value will be of type `number`, and the failure will be a `string`. The function body does the usual. It performs a check to ensure that the arguments are valid, and if they aren't, it returns a failure result using the `failureResult(...)` convenience function. If the arguments are valid, then returns a successful result that holds the value of the division operation.
+Right off the bat, the function signature tells the caller that it must deal with the fact that the result could be a success or a failure. Also, the success value will be of type `number`, and the failure will be a `string`. The function body does the usual. It performs a check to ensure that the arguments are valid, and if they aren't, it returns a failure result using the `failureResult(...)` convenience function. If the arguments are valid, then returns a successful result that holds the value of the division operation using the `sucessResult(...)` convenience function.
 
-Next we attempt to divide 100 by 10, which result in 10, and then divide that by 5, which results in 2, and multiply that by π. Notice that there are no if-statements to check whether the result succeeded. Rather, we chain the results. The first call `divide(100, 10)` returns a success `Result` that wraps the value 10. Calling `.andThen(callback)` on the result causes the specified callback function to be called if, and only if, the `Result` on which we are calling `.andThen(callback)` is a success. In other words, the first division succeeded, so the callback, `divide(quotient, 5)` will be called. The `.andThen(...)` function is a flat-map. And we use in it this case because the `divide(...)` function returns a `Result`. In our example, the second division succeeds and so the callback handed to the `.map(callback)` function is called, which multiplies the resultant value by π. We use a map because the callback does not return a `Result`. And then `result1` is a successful `Result` that has a value equal to 2π, which we can see from the console log.
+Next we attempt to divide 100 by 10, which result in 10, and then divide that by 5, which results in 2, and multiply that by π. Notice that there are no if-statements to check whether the result succeeded. Rather, we chain the results. The first call `divide(100, 10)` returns a success `Result` that wraps the value 10. Calling `andThen(callback)` on the result causes the specified callback function to be called if, and only if, the `Result` on which we are calling `andThen(callback)` is a success. In other words, the first division succeeded, so the callback, `quotient => divide(quotient, 5)` will be called. The `andThen(...)` function is a flat-map. And we use in it this case because the `divide(...)` function returns a `Result`. In our example, the second division succeeds and so the callback handed to the `map(...)` function is called, which multiplies the resultant value by π. We use a `map` because the callback does not return a `Result`. The callback handed to the `onSuccess(...)` function is called because the result of the `map` is a success, printing "2π = 6.283185307179586" to the console. The callback in the last function in the chain is not called because, in this case, because it would only be called if the previous result was a failure.
 
-What happens when the divisor is 0? In that case, the second and third callbacks are skipped and `result2` is a failure `Result` holding the reason for the failure. This can be seen from the console log for result2.
+What happens when the divisor is 0? In that case, the second, third, and forth callbacks are skipped the callback in the `onFailure(...)` function is called because the `divide(...)` function returns a failure result.
 
-Let's rewrite the previous example without the `Result`.
+This code is clear and concise. Let's see what happens when rewrite the previous example without the `Result`.
 
 ```ts
 /**
@@ -115,12 +111,95 @@ Yeah! A bunch of if-statements. The code is much less concise and harder to unde
 
 ## what else?
 
-`Result` provides a declarative way to chain together a series of operations, any of which could fail or succeed. The series of operations are laid out clearly, without the fog introduced by all the error handling code that would otherwise be needed.
+`Result` provides a declarative way to chain together a series of operations, any of which could fail or succeed. The series of operations are laid out clearly, without the fog of all the error handling code that would otherwise be needed.
 
-`Result` provides a consistent and explicit way of dealing with the fact that some operations could fail. Each function that returns a `Result` announces that its operation may fail and that the caller must deal with it (or continue to chain results). The `Result` must be unwrapped in order to get at the underlying value or failure reason.
+`Result` provides a consistent and explicit way of dealing with the fact that some operations could fail. Each function that returns a `Result` says that its operation may fail and that the caller must deal with it (or continue to chain results). The `Result` must be unwrapped in order to get at the underlying value or failure.
 
+It also provides a consistent and explicit way of dealing with the fact that some operation could fail. And requires that the result of the operation be managed at the point of the call. Each function that returns a `Result` telegraphs that it may fail and that the caller of the function must deal with that possibility. In this way, the risk of a surprise failure is removed, and the code becomes much easier to reason about.
+
+When using `Result` consistently in your code, it becomes difficult **not** to deal with errors. 
 
 ## usage patterns
+
+Safety from unexpected errors a primary reason to use `Result`. `Result` provides safety by forcing the caller to deal with the fact that the function may fail, thereby making it easier to reason about the code.
+
+### wrap
+
+When calling library functions that throw errors, over which you have no control, wrap that call in a `try/catch` returning a success result when it doesn't fail, and a failure result from the `catch` when it does fail. For example, when retrieving a set of pigs from some in-memory state, the call may result in an error (e.g. an invalid farm ID), as shown in the following code.
+
+```typescript
+import {failureResult, successResult} from "./Result";
+
+type Pig = {
+    name: string
+    weight: number
+    spots: number
+}
+
+/**
+ * Attempts to retrieve a farm's pigs. 
+ * @param farmId The farm's ID which must have the format `<region_id>:<county_id>:farm_log_number>`
+ * @return a {@link Result} holding the farm's pigs, or a failure
+ */
+function pigsInFarm(farmId: string): Result<Array<Pig>, string> {
+    try {
+        // either returns the pigs for the farm, or throws an error
+        const pigs = pigsFor(farmId)
+        // no error thrown, so return the list of the farm's pigs wrapped in a Result
+        return successResult(pigs)
+    } catch (error) {
+        // error was thrown, so return a failure result with the error message
+        return failureResult(error.message)
+    }
+}
+```
+
+When library functions represent error results as `undefined` or `NaN` or `null`, then convert those to a `Result`. The following example show how to wrap a `NaN` and can be applied to functions returning `undefined` and or `null`.
+
+> There are legitimate reason why a `NaN` might not represent an error. And in those cases, it wouldn't make sense to convert to a Result.
+
+```typescript
+import {failureResult, successResult, Result} from "./Result";
+
+/**
+ * Calculates a complex pig-spot metric for a set of pigs.
+ * @param pigs A list of {@link Pig}s
+ * @return A result holding the pig-spot metric or a failure
+ */
+function complexSpotMetricFor(pigs: Array<Pig>): Result<number, string> {
+    // attempts to calculate the pig-spot metric through some complex model. if the model
+    // fails, then returns a NaN.
+    const metric = complexSpotModelFor(pigs)
+    if (isNaN(metric)) {
+        // model failed, so return a failure explain
+        return failureResult(
+            `Could not calculate pig-spot metric for pigs [${pigs.map(pig => pig.name).join("; ")}]`
+        )
+    }
+    // success! return the very important pig-spot metric
+    return successResult(metric)
+}
+```
+
+### unwrapping
+
+
+### chaining
+
+
+### arrays of results
+
+
+### results and promises
+
+[//]: # (Recall, that when functions a `Result` they are forcing the caller to deal with the fact that the function may fail. Of course, the calling function could call one of the unwrapping functions, such as `getOrDefault&#40;&#41;`, `getOrThrow&#40;&#41;`, or `getOrUndefined&#40;&#41;`, but that defeats the whole point of using `Result`. )
+
+[//]: # ()
+[//]: # (Therefore, when all functions that can result in an error return a `Result`, you will have consistent pattern by which to deal with possible errors.)
+
+[//]: # ()
+[//]: # (Rather, the user   Wrap calls that throw errors with a `Result`.)
+
 
 [//]: # (A basic result for use when an operation that returns a result can either succeed or fail.)
 
