@@ -173,7 +173,7 @@ function complexSpotMetricFor(pigs: Array<Pig>): Result<number, string> {
     if (isNaN(metric)) {
         // model failed, so return a failure explain
         return failureResult(
-            `Could not calculate pig-spot metric for pigs [${pigs.map(pig => pig.name).join("; ")}]`
+            `Could not calculate spot metric for pigs [${pigs.map(pig => pig.name).join("; ")}]`
         )
     }
     // success! return the very important pig-spot metric
@@ -182,6 +182,33 @@ function complexSpotMetricFor(pigs: Array<Pig>): Result<number, string> {
 ```
 
 ### unwrapping
+
+At the end of a chain of `Result` operations you'll probably want to do something with the value. I can think of two cases:
+
+1. unwrap the result and use it outside a `Result`, or
+2. call a function that accepts the value and ends the `Result` chain
+
+As an example of the first case, we have the following code.
+
+```typescript
+/**
+ * Determines whether the spot metric can be calculated for the pigs
+ * @param pigs A list of {@link Pig}s
+ */
+function canCalcPositiveSpotMetricFor(pigs: Array<Pig>): boolean {
+    // the function 'complexSpotMetricFor(...)' returns a result that is
+    // either a success of or failure. when it returns a failure, the
+    // result's 'getOrDefault(...)' returns a false. when the 
+    // 'complexSpotMetricFor(...)' function returns a success value that
+    // is positive, then returns true
+    return complexSpotMetricFor(pigs)
+        .map(metric => metric > 0)
+        .getOrDefault(false)
+}
+```
+
+The previous code example attempts to calculate the spot metric for an array of pigs. When the spot metric is positive, then it returns `true`. When the calculation fails, then it falls through the `Result`'s `map(...)` and returns a `false`.
+
 
 
 ### chaining
