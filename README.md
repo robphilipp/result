@@ -497,6 +497,7 @@ flattening the `Results`.
 
 > The `Result.liftPromise` function takes the `Result<Promise<Result<Account, string>>>`, lifts the `Promise` out so that it becomes `Promise<Result<Result<Account, string>, string>>` and then flattens the results to yield `Promise<Result<Account, string>>>`.
 
+🥶 Yeah...maybe there is a better way to combine `Result` and `Promise`. Please help me figure that out!
 
 [//]: # (Recall, that when functions a `Result` they are forcing the caller to deal with the fact that the function may fail. Of course, the calling function could call one of the unwrapping functions, such as `getOrDefault&#40;&#41;`, `getOrThrow&#40;&#41;`, or `getOrUndefined&#40;&#41;`, but that defeats the whole point of using `Result`. )
 
