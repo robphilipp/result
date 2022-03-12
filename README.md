@@ -1,5 +1,25 @@
 # Result
 
+> For changes see [CHANGES.md](./CHANGES.md)
+
+## toc
+
+- [what?](#what)
+- [rant](#rant)
+- [why?](#why)
+- [what else?](#what-else)
+- [usage patterns](#usage-patterns)
+   - [wrap](#wrap)
+   - [unwrap](#unwrap)
+   - [callback](#callback)
+   - [chaining](#chaining)
+   - [arrays of results](#arrays-of-results)
+   - [results and promises](#results-and-promises)
+- [api](#api)
+   - [factory functions](#factory-functions)
+   - [properties](#properties)
+   - [methods](#methods)
+
 ## what?
 
 A `Result` wraps the outcome of an operation that can either succeed or fail. This package also provides convenient
