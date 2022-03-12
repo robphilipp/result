@@ -6,6 +6,21 @@ A `Result` wraps the outcome of an operation that can either succeed or fail. Th
 methods and functions for chaining, mapping, flat-mapping, reducing, converting `Results`. Please, read on, it's really
 cool.
 
+## rant
+
+Have you ever been ask to fix a bug or add a feature to someone else's code? And as you're testing, some exceptions is
+thrown, but you don't know exactly where. So you look at the stack trace and work through the code. You add a try/catch.
+Good to go. Oops, and now there is another exceptions. The point is, there could be a hundred exceptions thrown. And
+just inspecting the code gives you very little insight into the list of possible exceptions. An exception could be
+thrown in a dependent library. Or in some function, called by a function, called by a function, called by a function
+that you call. Yeah. The code becomes hard to reason about.
+
+Do your fellow developers (and yourself) a favor. Catch exceptions early on, and convert them to a `Result`. A `Result`
+clearly states that a function may fail. Every function that can fail, whether it caught an exception and returned a
+failure `Result`, or it called a function that itself returned a `Result` says "I can fail. Deal with it!". Now possible
+failure points become clear. And as a great side benefit of being forced to deal with possible failures on the spot, your
+code becomes safer and easier to understand! What's not to like!
+
 ## why?
 
 When you write a function returns the result of an operation that can either succeed or fail, you must decide how to
