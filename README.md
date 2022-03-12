@@ -4,6 +4,7 @@
 
 ## toc
 
+- [toc](#toc)
 - [what?](#what)
 - [rant](#rant)
 - [why?](#why)
@@ -17,8 +18,31 @@
    - [results and promises](#results-and-promises)
 - [api](#api)
    - [factory functions](#factory-functions)
+      - [successResult](#successresult)
+      - [failureResult](#failureresult)
+      - [resultFromAll](#resultfromall)
+      - [resultFromAny](#resultfromany)
+      - [forEachResult](#foreachresult)
+      - [forEachElement](#foreachelement)
+      - [forEachPromise](#foreachpromise)
+      - [reduceToResult](#reducetoresult)
    - [properties](#properties)
    - [methods](#methods)
+      - [equals](#equals)
+      - [nonEqual](#nonequal)
+      - [map](#map)
+      - [andThen](#andthen)
+      - [filter](#filter)
+      - [mapFailure](#mapfailure)
+      - [asFailureOf](#asfailureof)
+      - [liftPromise](#liftpromise)
+      - [onSuccess](#onsuccess)
+      - [onFailure](#onfailure)
+      - [always](#always)
+      - [getOrUndefined](#getorundefined)
+      - [getOrDefault](#getordefault)
+      - [getOrThrow](#getorthrow)
+      - [failureOrUndefined](#failureorundefined)
 
 ## what?
 
@@ -540,6 +564,8 @@ flattening the `Results`.
 
 <hr>
 
+#### successResult
+
 ```typescript
 function successResult<S, F extends ToString>(success: S): Result<S, F> {
 }
@@ -559,6 +585,8 @@ A `Result<S, F>` that holds the value of the successful operation.
 
 <hr>
 
+#### failureResult
+
 ```typescript
 function failureResult<S, F extends ToString>(failure: F): Result<S, F> {
 }
@@ -574,6 +602,8 @@ Arguments:
 Returns A `Result<S, F>` that holds the failure of type `F`.
 
 <hr>
+
+#### resultFromAll
 
 ```typescript
 function resultFromAll<S, F extends ToString>(results: Array<Result<S, F>>): Result<Array<S>, string> {
@@ -595,6 +625,8 @@ failures.
 
 <hr>
 
+#### resultFromAny
+
 ```typescript
 function resultFromAny<S, F extends ToString>(results: Array<Result<S, F>>): Result<Array<S>, string> {
 }
@@ -613,6 +645,8 @@ Returns
 A `Result<Array<S>, F>` holding an array of successful values. Any failures will be discarded.
 
 <hr>
+
+#### forEachResult
 
 ```typescript
 function forEachResult<SI, FI extends ToString, SO, FO extends ToString>(
@@ -651,6 +685,8 @@ the `Result<Array<SO>, Array<FO>>` holds an array of the failures of type `FO`.
 
 <hr>
 
+#### forEachElement
+
 ```typescript
 function forEachElement<V, S, F extends ToString>(
     elems: Array<V>,
@@ -688,6 +724,8 @@ Returns
 A `Result<Array<S>, Array<F>>` wrapping the array of success values, or failure values.
 
 <hr>
+
+#### forEachPromise
 
 ```typescript
 function forEachPromise<V, S, F>(
@@ -750,6 +788,8 @@ a success in order for the returned result to be a success.
 
 <hr>
 
+#### reduceToResult
+
 ```typescript
 function reduceToResult<V, S, F extends ToString>(
     values: Array<V>,
@@ -790,6 +830,8 @@ returns a `Result<S, Array<F>>` that holds a list of failures.
 
 ### methods
 
+#### equals
+
 ```typescript
 equals: (result: Result<S, F>) => boolean
 ```
@@ -806,6 +848,8 @@ Returns
 `true` if the results are equal. `false` the results are not equal
 
 <hr>
+
+#### nonEqual
 
 ```typescript
 nonEqual: (result: Result<S, F>) => boolean
@@ -825,6 +869,8 @@ Returns
 
 <hr>
 
+#### map
+
 ```typescript
 map: <SP>(mapper: (value: S) => SP) => Result<SP, F>
 ```
@@ -840,6 +886,8 @@ Return
 When this result is a success, then returns a `Result<SP, F>` that wraps the result of the `mapper` function. When this result is a failure, the returns this result.
 
 <hr>
+
+#### andThen
 
 ```typescript
 andThen: <SP>(next: (value: S) => Result<SP, F>) => Result<SP, F>
@@ -860,6 +908,8 @@ this result is a failure, then returns this `Result<SP, F>` (with the undefined 
 
 <hr>
 
+#### filter
+
 ```typescript
 filter: (filter: (value: S) => boolean, failureProvider?: () => F) => Result<S, F>
 ```
@@ -878,6 +928,8 @@ Returns
 When this result is a success, then returns the success if and only if it matches the predicate. If it does not match the predicate, the returns a failure. When this result is a failure, then returns the failure.
 
 <hr>
+
+#### mapFailure
 
 ```typescript
 mapFailure: <FP>(mapper: (failure: F) => FP) => Result<S, FP>
@@ -898,6 +950,8 @@ When the result is a failure, maps the failure to a new failure and returns it
 
 <hr>
 
+#### asFailureOf
+
 ```typescript
 asFailureOf: <SP>(fallback: F) => Result<SP, F>
 ```
@@ -914,6 +968,8 @@ Returns
 A new failure result with the new success type
 
 <hr>
+
+#### liftPromise
 
 ```typescript
 liftPromise: <SP>() => Promise<Result<SP, F>>
@@ -932,6 +988,8 @@ Returns
 A promise to a result whose success type is that same as the type of the promise's resolved value
 
 <hr>
+
+#### onSuccess
 
 ```typescript
 onSuccess: (handler: (value: S) => void) => Result<S, F>
@@ -952,6 +1010,8 @@ This result (`Result<S, F>`).
 See also`onFailure`, `always`
 
 <hr>
+
+#### onFailure
 
 ```typescript
 onFailure: (handler: (error: F) => void) => Result<S, F>
@@ -974,6 +1034,8 @@ See also `onSuccess`, `always`
 
 <hr>
 
+#### always
+
 ```typescript
 always: (handler: () => void) => Result<S, F>
 ```
@@ -993,6 +1055,8 @@ See also `onSuccess`, `onFailure`
 
 <hr>
 
+#### getOrUndefined
+
 ```typescript
 getOrUndefined: () => S | undefined
 ```
@@ -1005,6 +1069,8 @@ When this result is a success, then returns the value. Otherwise returns `undefi
 See also `getOrDefault`, `getOrThrow`, `failureOrUndefined`
 
 <hr>
+
+#### getOrDefault
 
 ```typescript
 getOrDefault: (value: S) => S
@@ -1019,6 +1085,8 @@ See also `getOrUndefined`, `getOrThrow`, `failureOrUndefined`
 
 <hr>
 
+#### getOrThrow
+
 ```typescript
 getOrThrow: () => S
 ```
@@ -1031,6 +1099,8 @@ contains the error in this result.
 See also `getOrUndefined`, `getOrDefault`, `failureOrUndefined`   
 
 <hr>
+
+#### failureOrUndefined
 
 ```typescript
 failureOrUndefined: () => F | undefined
