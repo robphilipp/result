@@ -18,13 +18,13 @@ that you call. Yeah. The code becomes hard to reason about.
 Do your fellow developers (and yourself) a favor. Catch exceptions early on, and convert them to a `Result`. A `Result`
 clearly states that a function may fail. Every function that can fail, whether it caught an exception and returned a
 failure `Result`, or it called a function that itself returned a `Result` says "I can fail. Deal with it!". Now possible
-failure points become clear. And as a great side benefit of being forced to deal with possible failures on the spot, your
-code becomes safer and easier to understand! What's not to like!
+failure points become clear. And as a great side benefit of being forced to deal with possible failures on the spot,
+your code becomes safer and easier to understand! What's not to like!
 
 ## why?
 
-When you write a function that returns the result of an operation that can either succeed or fail, you must decide how to
-deal with the error condition. You have several options.
+When you write a function that returns the result of an operation that can either succeed or fail, you must decide how
+to deal with the error condition. You have several options.
 
 1. The function can throw
    an [Error](https://developer.mozilla.org/en-US/docs/web/javascript/reference/global_objects/error).
@@ -514,61 +514,510 @@ flattening the `Results`.
 
 🥶 Yeah...maybe there is a better way to combine `Result` and `Promise`. Please help me figure that out!
 
-[//]: # (Recall, that when functions a `Result` they are forcing the caller to deal with the fact that the function may fail. Of course, the calling function could call one of the unwrapping functions, such as `getOrDefault&#40;&#41;`, `getOrThrow&#40;&#41;`, or `getOrUndefined&#40;&#41;`, but that defeats the whole point of using `Result`. )
+## api
 
-[//]: # ()
+### factory functions
 
-[//]: # (Therefore, when all functions that can result in an error return a `Result`, you will have consistent pattern by which to deal with possible errors.)
+<hr>
 
-[//]: # ()
+```typescript
+function successResult<S, F extends ToString>(success: S): Result<S, F> {
+}
+```
 
-[//]: # (Rather, the user   Wrap calls that throw errors with a `Result`.)
+A factory function for a successful `Result<S, F>`. Use this function to wrap a value of type `S` in a `Result`. When
+using this function, the `Result.error` will be set to `undefined.`
+
+Arguments
+
+- `success` The value of the successful operation.
+
+Returns
+
+A `Result<S, F>` that holds the value of the successful operation.
 
 
-[//]: # (A basic result for use when an operation that returns a result can either succeed or fail.)
+<hr>
 
-[//]: # (Instead of throwing an exception or returning `undefined` when the operation fails, the {@link Result})
+```typescript
+function failureResult<S, F extends ToString>(failure: F): Result<S, F> {
+}
+```
 
-[//]: # (can be marked as a failure, and an error object can be returned describing the reason for the failure. When)
+A factory function for a failure `Result<S, F>`. Use this function to wrap a failure of type `F` in a `Result`. When
+using this function, the `Result.success` will be set to `undefined`.
 
-[//]: # (the operation succeeds, the {@link Result} can be marked as a success, and it then holds the)
+Arguments:
 
-[//]: # (result of the operation.)
+- `failure` The error reported from the operation.
 
-[//]: # ()
+Returns A `Result<S, F>` that holds the failure of type `F`.
 
-[//]: # (Additionally, it provides the chaining of results through {@link Result.map} and {@link Result.andThen}.)
+<hr>
 
-[//]: # (The {@link reduceToResult} is a reducing function that combine a set of {@link Result}-producing)
+```typescript
+function resultFromAll<S, F extends ToString>(results: Array<Result<S, F>>): Result<Array<S>, string> {
+}
+```
 
-[//]: # (operations into one {@link Result} that is a success iff all the operations are a success. And the)
+A convenience function for collapsing (flatMap) an array of `Result<S, F>`s into a single `Result<Array<S>, F>`
+that holds an array of values. All results in the specified array of results must be successful in order for the
+returned result to be a success.
 
-[//]: # ({@link forEachResult} accepts a set of {@link Result}s and combines them into one result that is a)
+Arguments
 
-[//]: # (success iff all the {@link Result}s are a success.)
+- `results` An array of results
 
-[//]: # ()
+Returns
 
-[//]: # (When writing functions that return a {@link Result}, use the {@link successResult} function to create)
+A `Result<Array<S>, F>` holding an array of successful values, or a failure if any of the results in the array are
+failures.
 
-[//]: # (a success {@link Result}. And use the {@link failureResult} function to create a, you guessed it, ad)
+<hr>
 
-[//]: # (failure {@link Result}.)
+```typescript
+function resultFromAny<S, F extends ToString>(results: Array<Result<S, F>>): Result<Array<S>, string> {
+}
+```
 
-[//]: # ()
+A convenience function for collapsing (flatMap) an array of `Result<S, F>`s into a single `Result<Array<S>, F>`
+that holds an array of successful values. Any failure results will be discarded. If all the results are failures, then
+returns a successful result holding an empty array.
 
-[//]: # (The {@link Result.succeeded} and {@link Result.failed} properties of a result report whether the)
+Arguments
 
-[//]: # (is a success or failure.)
+- `results` An array of results
 
-[//]: # ()
+Returns
 
-[//]: # (The {@link Result.getOrUndefined} method returns a value on a success, or `undefined` on a failure.)
+A `Result<Array<S>, F>` holding an array of successful values. Any failures will be discarded.
 
-[//]: # (The {@link Result.getOrDefault} method returns the value on a success, or the specified value when)
+<hr>
 
-[//]: # (the {@link Result} is a failure. And the {@link Result.getOrThrow} returns the value on a success, and)
+```typescript
+function forEachResult<SI, FI extends ToString, SO, FO extends ToString>(
+    resultList: Array<Result<SI, FI>>,
+    handler: (result: Result<SI, FI>) => Result<SO, FO>
+): Result<Array<SO>, Array<FO>> {
+}
+```
 
-[//]: # (throws an error, with the error value, on a failure. Although the {@link Result.value} is available,)
+For each result in the `resultList` this function applies the `handler` function, and then reduces each of those results
+into a single result. The single result is a "success" if and only if all the results spewed from the
+`handler` are a "success" as well. Conversely, if any of those results are a "failure", the single result is also a
+failure.
 
-[//]: # (I encourage you not to use it directly, but rather use the above-mentioned accessor methods.)
+The single result holds an array of all the success values when it is a success. When it is a failure, then holds a list
+of all the failures.
+
+Arguments
+
+- `resultList` An array holding the `Result<SI, FI>` objects to flatten.
+- `handler` The handler that accepts a `Result<SI, FI>` and returns a new `Result<SO, FO>`. Notice that the result's
+  types may differ between the specified results and those returned by the handler.
+
+Types
+
+- `SI` The type of the success elements in the input array
+- `FI` The type of the failure elements in the input array
+- `SO` The success type for the operation in the handler that leads to a successful result
+- `FO` The failure type for the operation in the handler that leads to a failed result
+
+Returns
+
+A single `Result<Array<SO>, Array<FO>>` which is either a success or failure. When the result is a success, then
+the `Result<Array<SO>, Array<FO>>` holds an array of success values of type `SO`. When the result is a failure, then
+the `Result<Array<SO>, Array<FO>>` holds an array of the failures of type `FO`.
+
+<hr>
+
+```typescript
+function forEachElement<V, S, F extends ToString>(
+    elems: Array<V>,
+    handler: (elem: V) => Result<S, F>
+): Result<Array<S>, Array<F>> {
+}
+```
+
+This function applies the specified `handler` to the specified array of elements of type `V`. The `handler` accepts each
+element and returns a `Result<S, F>`. The resulting array of `Result<S, F>` objects are flattened into a
+single `Result<Array<S>, Array<F>>`.
+
+As an example, given an array of numbers to which we apply an operation that can fail (i.e. returning a `Result<S, F>`)
+We want the overall result to be a success only if all the operations are a success. And when any of the operations are
+a failure, then we want the overall result is a failure.
+
+```typescript
+const result = forEachElement(
+    [1, 2, 3, 4, 5],
+    elem => elem === 3 ?
+        failureResult<number, string>("three sucks") :
+        successResult<number, string>(2 * elem)
+)
+expect(result.failed).toBeTruthy()
+expect(result.error).toEqual(["we don't accept 3"])
+```
+
+Arguments
+
+- `elems` The elements on which to perform an operation that can fail (i.e. one that returns a `Result<S, F>`).
+- `handler` The operation that accepts an element and returns a `Result<S, F>`
+
+Returns
+
+A `Result<Array<S>, Array<F>>` wrapping the array of success values, or failure values.
+
+<hr>
+
+```typescript
+function forEachPromise<V, S, F>(
+    elems: Array<V>,
+    handler: (elem: V) => Promise<Result<S, F>>
+): Promise<Result<Array<S>, Array<F>>> {
+}
+```
+
+This function accepts an array of values of type `V`, and for each value calls a `handler` function, that returns
+a `Promise<Result<S, F>>` for that value. Then flattens the array of `Promise<Result<S, F>>` into a
+single `Promise<Result<Array<S>, Array<F>>>`, which it returns. All results must be a success for the promised result to
+be a success. If any results are a failure, then the promised result is also a failure.
+
+In the following example our handler function simulates a call that returns a promise to a result for each doubled,
+element in the specified list.
+
+```typescript
+const results = await forEachPromise(
+    [1, 2, 3, 4, 5],
+    elem => new Promise<Result<number, string>>((resolve, reject) => {
+        setTimeout(() => {
+            resolve(successResult(elem * 2))
+        }, 300)
+    }))
+
+expect(results.getOrThrow()).toEqual([2, 4, 6, 8, 10])
+```
+
+In this next example, we again simulate a call to a function that returns a promise to a result. In this case, we only
+accept event numbers. Any odd numbers (not that there is anything wrong with being odd) are rejected. The overall result
+is a failure, and there is a failure message for each of those failures.
+
+```typescript
+const results = await forEachPromise(
+    [1, 2, 3, 4, 5],
+    elem => new Promise<Result<number, string>>((resolve, reject) => {
+        setTimeout(() => {
+            if (elem % 2 === 0) {
+                resolve(successResult(elem / 2))
+            } else {
+                reject("number must be even")
+            }
+        }, 300)
+    }))
+
+expect(results.failed).toBeTruthy()
+expect(results.error).toEqual(["number must be even", "number must be even", "number must be even"])
+```
+
+Arguments
+
+- `elems` The elements to which to apply the specified handler function
+- `handler` The function that returns a `Promise<Result<S, F>>` for a specified value
+
+Returns
+
+A `Promise<Result<Array<S>, Array<F>>>` holding an array of successes, or an array of failures. All the results must be
+a success in order for the returned result to be a success.
+
+<hr>
+
+```typescript
+function reduceToResult<V, S, F extends ToString>(
+    values: Array<V>,
+    reducer: (reducedValue: S, value: V) => Result<S, F>,
+    initialValue: S
+): Result<S, Array<F>> {}
+```
+
+This function accepts an array of values of type `V` and applies the specified `reducer` function to each value.
+The `reducer` function accepts a value of type `V` and a reduced-value of type `S` and returns a `Result<S, F>`. When
+all the `Result<S, F>` objects are a success, then returns the reduced-value wrapped in a new `Result<S, Array<F>>`.
+When any of the `Result<S, F>` are a failure, returns a failure that holds an array of all the failures.
+
+Arguments
+
+- `values` The values to reduce
+- `reducer` The reducer function @param initialValue The initial value of the reduced value
+
+
+Types
+
+- `V` The type of the elements in the input array 
+- `S` The success type for the operation in the handler
+that leads to a successful result 
+- `F` The failure type for the operation in the handler that leads to a failed
+result 
+
+Returns
+
+A `Result<S, Array<F>>` that holds the reduced value. Or in the event of one or more failures,
+returns a `Result<S, Array<F>>` that holds a list of failures.
+
+### properties
+
+- **succeeded** (boolean) is `true` when the result is a success, and `false` when the result is a failure.    
+- **failed** (boolean) is `true` when the result failed, and `false` when the result succeeded.
+
+
+### methods
+
+```typescript
+equals: (result: Result<S, F>) => boolean
+```
+Determines the equality of this result and the specified one. The results are considered equal if:
+  1. They are both a success and their values are equal
+  2. They are both a failure and their errors are equal
+
+Arguments
+ 
+- `result` The result to compare to this one
+
+Returns
+
+`true` if the results are equal. `false` the results are not equal
+
+<hr>
+
+```typescript
+nonEqual: (result: Result<S, F>) => boolean
+```
+
+Determines the equality of this result and the specified one. The results are considered equal if:
+  1. They are both a success and their values are equal
+  2. They are both a failure and their errors are equal
+
+Arguments
+
+- `result` The result to compare to this one
+
+Returns
+
+`true` if the results are **not** equal. `false` the results are equal
+
+<hr>
+
+```typescript
+map: <SP>(mapper: (value: S) => SP) => Result<SP, F>
+```
+
+Applies the specified `mapper` function to the success value of this result, and returns a new {@link Result} that wraps the result of the `mapper`. When this result is a failure, then it does **not** apply the `mapper`, but rather merely returns this result.
+
+Arguments
+
+- `mapper: (value: S) => SP` The mapper function that accepts the success value of type `S` and returns a new value of type `SP`.
+
+Return 
+
+When this result is a success, then returns a `Result<SP, F>` that wraps the result of the `mapper` function. When this result is a failure, the returns this result.
+
+<hr>
+
+```typescript
+andThen: <SP>(next: (value: S) => Result<SP, F>) => Result<SP, F>
+```
+
+Applies the specified `next` function to the success value of this result, and returns the
+result of the `next` function. When this result is a failure, then it does **not** apply the
+`next` function, but rather merely returns the failure result.
+
+Arguments
+
+- `next: (value: S) => Result<SP, F>` The function to apply to this result's success value
+
+Returns
+
+When this result is a success, then returns the `Result<SP, F>` of the `next` function. When
+this result is a failure, then returns this `Result<SP, F>` (with the undefined success result type changed to `SP`).
+
+<hr>
+
+```typescript
+filter: (filter: (value: S) => boolean, failureProvider?: () => F) => Result<S, F>
+```
+
+Applies the filter to the success value of this result and returns the result if it matches
+the filter predicate, or a failure if it doesn't match the predicate. When this result is a
+failure, then returns that failure.
+
+Arguments
+
+- `filter: (value: S) => boolean` The filter predicate
+- `failureProvider?: () => F` Optional function that provides the failure when the success result does not match the predicate
+
+Returns
+
+When this result is a success, then returns the success if and only if it matches the predicate. If it does not match the predicate, the returns a failure. When this result is a failure, then returns the failure.
+
+<hr>
+
+```typescript
+mapFailure: <FP>(mapper: (failure: F) => FP) => Result<S, FP>
+```
+
+When this result is a failure, then applies the specified `mapper` function to the failure.
+When the result is a success, then simply returns a copy of this result. This function is
+useful when you want to update the failure information at the end of a result chain.
+
+Arguments
+
+- `mapper: (failure: F) => FP` A mapper that accepts the failure and returns a new failure
+
+Returns
+
+When the result is a failure, maps the failure to a new failure and returns it
+
+
+<hr>
+
+```typescript
+asFailureOf: <SP>(fallback: F) => Result<SP, F>
+```
+
+Changes the type of the result when the result is a failure. This is helpful when checking a
+result for failure, and then need to return a result whose success type is different.
+
+Arguments
+
+- `fallback: F` A fallback failure in case the failure in the result is undefined
+
+Returns
+
+A new failure result with the new success type
+
+<hr>
+
+```typescript
+liftPromise: <SP>() => Promise<Result<SP, F>>
+```
+
+Convenience method to make it a bit easier to work with chained promises and results.
+
+
+Attempts to lift the Promise out of the result and re-wrap the result as a promise. In other words, attempts to convert a `Result<Promise<S>, F>` into a `Promise<Result<SP>, F` where the type `SP`equals to the type `S` of the resolved promise.
+
+Additionally, when lifting a `Promise` for a `Result` out of a `Result`, this function we also flatten the resulting `Result` of a `Result`. In other words, it will convert
+`Result<Promise<Result<S, F>, F>` into a `Promise<Result<SP, F>>`.
+
+Returns
+
+A promise to a result whose success type is that same as the type of the promise's resolved value
+
+<hr>
+
+```typescript
+onSuccess: (handler: (value: S) => void) => Result<S, F>
+```
+
+When this result is a success, calls the `handler` function on this result's value, and
+returns this result. When this result is a failure, then does **not** call the `handler`, but
+rather just returns this result. Note that this method does not modify this result.
+
+Arguments
+
+- `handler: (value: S) => void` The callback that accepts the success value, but doesn't return anything.
+
+Returns 
+
+This result (`Result<S, F>`).
+
+See also`onFailure`, `always`
+
+<hr>
+
+```typescript
+onFailure: (handler: (error: F) => void) => Result<S, F>
+```
+
+When this result is a failure, calls the `handler` function on this result's error, and
+returns this result. When this result is a success, then does **not** call the `handler`, but
+rather just returns this result. Note that this method does not modify this result.
+
+Arguments
+
+- `handler: (error: F) => void` The callback that accepts the error, but doesn't return anything.
+
+Returns
+
+This result.
+
+
+See also `onSuccess`, `always`
+
+<hr>
+
+```typescript
+always: (handler: () => void) => Result<S, F>
+```
+
+Calls the handler regardless whether the result is a success or failure.
+
+Arguments
+
+- `handler: () => void` The callback to perform
+
+Returns
+
+This result (`Result<S, F>`)
+
+See also `onSuccess`, `onFailure`
+
+
+<hr>
+
+```typescript
+getOrUndefined: () => S | undefined
+```
+
+Returns
+
+When this result is a success, then returns the value. Otherwise returns `undefined`.
+
+
+See also `getOrDefault`, `getOrThrow`, `failureOrUndefined`
+
+<hr>
+
+```typescript
+getOrDefault: (value: S) => S
+```
+
+Returns
+
+When this result is a success, then returns the value. Otherwise, returns the specified
+default value.
+
+See also `getOrUndefined`, `getOrThrow`, `failureOrUndefined`
+
+<hr>
+
+```typescript
+getOrThrow: () => S
+```
+
+Returns
+
+When this result is a success, then returns the value. Otherwise, throws an error that
+contains the error in this result.
+
+See also `getOrUndefined`, `getOrDefault`, `failureOrUndefined`   
+
+<hr>
+
+```typescript
+failureOrUndefined: () => F | undefined
+```
+
+Returns
+
+When this result is a failure, then returns the error. Otherwise, returns `undefined`.
+
+See also `getOrUndefined`, `getOrDefault`, `getOrThrow`   

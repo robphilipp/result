@@ -128,9 +128,6 @@ export type Result<S, F extends ToString> = {
      * we also flatten the resulting {@link Result} of a {@link Result}. In other words, it will convert
      * `Result<Promise<Result<S, F>, F>` into a `Promise<Result<SP, F>>`.
      *
-     * @param success The success, which must be a `Promise<S>`. When the this parameter is not a `Promise<S>`,
-     * then wraps the result in a Promise.
-     * @param failure The failure
      * @return a promise to a result whose success type is that same as the type of the promise's resolved value
      */
     liftPromise: <SP>() => Promise<Result<SP, F>>
@@ -203,6 +200,7 @@ export type Result<S, F extends ToString> = {
  * @return A {@link Result} that holds the value of the successful operation and an undefined error.
  */
 export const successResult = <S, F extends ToString>(success: S): Result<S, F> => resultFrom({success} as ResultType<S, F>)
+
 /**
  * Factory function for a failure {@link Result}.
  * @param failure The error reported from the operation.
@@ -518,7 +516,7 @@ function getOrThrow<S, F extends ToString>(success?: S, failure?: F): S {
 /**
  * For each result in the `resultList` applies the `handler` function, and then reduces each of those
  * results into a single result. The single result is a "success" iff all the results spewed from the
- * `handler` is a "success". Conversely, if an of those results is a "failure", the single result is
+ * `handler` are a "success". Conversely, if any of those results are a "failure", the single result is
  * also a failure.
  *
  * The single result holds an array of all the success values when it is a success. When it is a failure,
@@ -567,28 +565,24 @@ export function forEachResult<SI, FI extends ToString, SO, FO extends ToString>(
  * the failures are collected, and the overall result is a failure.
  *
  * @example
- * const results = await forEachPromise([1,2,3,4,5], elem => new Promise<Result<number, string>>((resolve, reject) => {
- *     setTimeout(() => {
- *         resolve(successResult(elem * 2))
- *     }, 300)
- * }))
- *
- * expect(results.getOrThrow()).toEqual([2,4,6,8,10])
- *
+ * const result = forEachElement(
+ *      [1, 2, 3, 4, 5],
+ *      elem => successResult(2 * elem)
+ *  )
+ *  expect(result.succeeded).toBeTruthy()
+ *  expect(result.getOrDefault([]).length).toBe(5)
+ *  expect(result.getOrDefault([])).toEqual([2, 4, 6, 8, 10])
+ *         
  * @example
- * const results = await forEachPromise([1,2,3,4,5], elem => new Promise<Result<number, string>>((resolve, reject) => {
- *     setTimeout(() => {
- *         if (elem % 2 === 0) {
- *             resolve(successResult(elem / 2))
- *         } else {
- *             reject("number must be even")
- *         }
- *     }, 300)
- * }))
- *
- * expect(results.failed).toBeTruthy()
- * expect(results.error).toEqual(["number must be even", "number must be even", "number must be even"])
- *
+ * const result = forEachElement(
+ *      [1, 2, 3, 4, 5],
+ *      elem => elem === 3 ?
+ *          failureResult<number, string>("three sucks") :
+ *          successResult<number, string>(2 * elem)
+ *  )
+ *  expect(result.failed).toBeTruthy()
+ *  expect(result.error).toEqual(["three sucks"])
+ *         
  * @param elems The elements on which to perform a {@link Result} returning operation
  * @param handler The operation that accepts an element and returns a {@link Result}
  * @return A {@link Result} wrapping the array of success values, or failure values.
@@ -623,6 +617,30 @@ export function forEachElement<V, S, F extends ToString>(
  * Accepts an array of values, and for each value calls a handler function that returns a {@link Promise} to
  * a {@link Result} from operating on that value. Then returns a {@link Promise} to a {@link Result} holding
  * an array of successes, or an array of failures.
+ *
+ * @example
+ * const results = await forEachPromise([1,2,3,4,5], elem => new Promise<Result<number, string>>((resolve, reject) => {
+ *     setTimeout(() => {
+ *         resolve(successResult(elem * 2))
+ *     }, 300)
+ * }))
+ *
+ * expect(results.getOrThrow()).toEqual([2,4,6,8,10])
+ *
+ * @example
+ * const results = await forEachPromise([1,2,3,4,5], elem => new Promise<Result<number, string>>((resolve, reject) => {
+ *     setTimeout(() => {
+ *         if (elem % 2 === 0) {
+ *             resolve(successResult(elem / 2))
+ *         } else {
+ *             reject("number must be even")
+ *         }
+ *     }, 300)
+ * }))
+ *
+ * expect(results.failed).toBeTruthy()
+ * expect(results.error).toEqual(["number must be even", "number must be even", "number must be even"])
+ *
  * @param elems The elements to which to apply the specified handler function
  * @param handler The function that returns a {@link Result} for a specified value
  * @return a {@link Promise} to a {@link Result} holding an array of successes, or an array of failures.
