@@ -325,7 +325,8 @@ function handlePigScoreMessage(message: Message): void {
                 .onSuccess(() => repo.commit(transaction))
                 .onFailure(() => repo.rollback(transaction))
             )
-            // succeeded writing to database and issuing a certificate, acknowledge the message
+            // succeeded writing to database and issuing a certificate, 
+            // acknowledge the message
             .onSuccess(() => ackMessage(message.deliveryTag))
             // failed to record score or issue certificate, reject the message
             // so that it can be handled again
@@ -336,19 +337,166 @@ function handlePigScoreMessage(message: Message): void {
 
 When a message is taken from the queue, the consumer calls the `handlePigScoreMessage(...)` function handing it the
 message. The `handlePigScoreMessage(...)` first attempts to convert the message to a `PigScore`. The conversion can fail
-if the message is invalid, and in that case, we acknowledge the message to get it off the queue and drop it. When the conversion succeeds, then we attempt to write it to the database using a transaction that includes issuing the certificate. The `insertWithRetry(...)` function attempts to write the pig' score. When it succeeds, the callback function specified in the chained `andThen(...)` is called, which attempts to issue the certificate. A failure to issue the certificate cause the database transaction to be rolled back. Successfully issuing the certificate caused the database transaction to be committed. In the event that issuing the certificate fails, the transaction is rolled back, and the outer `onFailure(...)` calls the function to reject the message so that it can be reprocessed. When the database write and the certificate issuance succeed, then the outer `onSuccess(...)` calls the function to acknowledge the message.
+if the message is invalid, and in that case, we acknowledge the message to get it off the queue and drop it. When the
+conversion succeeds, then we attempt to write it to the database using a transaction that includes issuing the
+certificate. The `insertWithRetry(...)` function attempts to write the pig' score. When it succeeds, the callback
+function specified in the chained `andThen(...)` is called, which attempts to issue the certificate. A failure to issue
+the certificate cause the database transaction to be rolled back. Successfully issuing the certificate caused the
+database transaction to be committed. In the event that issuing the certificate fails, the transaction is rolled back,
+and the outer `onFailure(...)` calls the function to reject the message so that it can be reprocessed. When the database
+write and the certificate issuance succeed, then the outer `onSuccess(...)` calls the function to acknowledge the
+message.
 
-Clearly this was a complicated example. But notice that the code is easy to understand. And importantly, it is safe.
+Clearly this was a complicated example. Yet the code is easy to understand. And importantly, it is safe.
 
-Generally chaining and nesting provide a declarative way laying out the code's logic. Let's look chaining in more detail.
+Generally chaining and nesting provide a declarative way laying out the code's logic. Let's look chaining in more
+detail.
 
 ![result-flow](./docs/result-flow-chain.png)
 
-A result can be either a `success` or a `failure`. The result's `map(callback: value => otherValue)` function will call the callback function only when the result is a `success`, and it will return the value returned by the callback. When the result is a `failure`, then the result's `map(callback: value => otherValue)` function does **not** call the callback, but rather merely returns the failure. And the same applies to the `andThen(callback: value => Result)` function. This idea is represented graphically in the previous diagram. If the result is a failure, the first `map` passes the failure to the `andThen`, which passes the failure to the next `andThen` which passes the failure to the `onSuccess` which passes the failure to the `onFailure` which logs the error to the console.
+Recall that a result can be either a `success` or a `failure`. In the above diagram, the `result`'s
+`map(callback: value => otherValue)` function will call the specified (callback) `convertValue(...)` function only when
+the result is a `success`, and it will return the value returned by `convertValue(...)`. When the result is a `failure`,
+then the result's `map(callback: value => otherValue)` function does **not** call `convertValue(...)`, but rather merely
+returns the `failure`. Because the `map(...)` function returns the `result`, but with an updated value, if the `result`
+was originally a `success`, then the `possiblyFails(...)` callback passed to the `andThen(callback: value => Result)`
+function will be called. The `andThen(...)` is a flat map function. The callback to the `andThen(...)` function returns
+a `Result` and this `Result` itself, so we have a `Result<Result<SP, F>>` and the `andThen(...)` flattens that to
+a `Result<SP, F>`.
+
+This idea is represented graphically in the diagram. If the result is a failure, the first `map`
+passes the failure to the `andThen`, which passes the failure to the next `andThen` which passes the failure to
+the `onSuccess` which passes the failure to the `onFailure` which logs the error to the console.
 
 ### arrays of results
 
+Pigs are unruly. And we need to run each pig through an automated spot counter so that we can record the number of spots
+each pig has. The automated spot counter attempts to verify the identity of the pig, based on a facial scan, then
+attempts to count all the spots on the pig. After the pigs' spots are counted, we want to record the successful
+spot-counts, and also the unsuccessful ones.
+
+```typescript
+import {forEachElement, resultFromAny} from "./Result";
+
+type PigSpots = {
+    pig: Pig
+    spots: number
+}
+
+function verifyPig(pig: Pig): Result<Pig, string> {
+    // some complex AI to determine whether the pig matches 
+    // the records, if the verification fails, the returns a
+    // failure result, otherwise, returns the Pig as a success
+}
+
+function countSpotsFor(pig: Pig): Result<number, string> {
+    // somemore complex AI to count the spots on the pig
+    // if the count fails, returns a failure result. Otherwise
+    // returns the number of spots on the pig
+}
+
+/**
+ * Given an array of pigs, attempts to count the spots on each verified pig
+ * and returns all the spot-counts that succeeded.
+ * @param pigs The pigs
+ * @return An array holding the successful spot counts, or a failure if the
+ * equipment failed.
+ */
+function countSpotsOn(pigs: Array<Pig>): Result<Array<PigSpot>, string> {
+    const counts: Array<Result<PigSpot, string>> = pigs
+        .map(pig => verifyPig(pig).andThen(verifiedPig => countSpotsFor(verifiedPig)))
+    // flatten the Array<Result<PigSpot, string>> to an Result<Array<PigSpot>, string>, throwing
+    // out any of the failures
+    return resultFromAny(counts)
+}
+
+// grab all the pigs for the farm
+const pigsToCount: Array<Pig> = await retrievePigsFor("0110-314-2723434223384")
+// attempt to count the spots
+countSpotsFor(await retrievePigsFor(farm))
+    // if successful, then record the pig spots for each successful spot-count
+    .onSuccess(pigSpots => pigSpots.forEach(pigSpot => persist(pigSpot)))
+    // figure out which pigs could not be counted and then record the failures
+    .map(pigSpots => setFrom(pigsToCount)
+        .compliment(pigSpots.map(pigSpot => pigSpot.pig))
+        .toArray()
+    )
+    .onSuccess(failedPigs => failedPigs.forEach(failure => recordFailure(failure)))
+    // couldn't count pigs so report the equipment failure
+    .onFailure(reason => reportEquipmentFailure(reason))
+```
+
+Aside from the `resultFromAny(...)`, there is also the `resultFromAll(...)` function that returns a success `Result`
+only when all the results passed to it are themselves successes.
+
 ### results and promises
+
+There a number of use cases where `Result` and `Promise` are used together. Consider, for example, making a REST call (
+say with fetch or axios) to retrieve a user's information. The REST call returns a promise, and that promise holds the
+result of the REST call once it is resolved. When the user exists, then the promise yields the account. But what if the
+user doesn't exist, and the REST call results in a "not-found" status code (404). Instead of throwing an error we can
+return an empty user, because a successful result means there was no error, but also no user. In case there is an error,
+we can return a failure `Result` with a message describing the error.
+
+```typescript
+import {failureResult, successResult} from "./Result";
+
+function userInfo(userId: number): Promise<Result<User, string>> {
+    return axios.get('/user?id=314159')
+        .then(response => {
+            if (response === 200) {
+                return successResult(response.data)
+            }
+            if (status === 404) {
+                return successResutl(emptyUser())
+            }
+            return failureResult(`Failed to retrieve user; http_status: ${response.status}; reason: ${response.statusCode}`)
+        })
+        .catch(reason => failureResult(reason))
+}
+```
+
+Of course, when a user with the specified ID doesn't exist, you could also return a failure. It really depends on the
+context.
+
+Suppose that after you retrieve the user information, you want to grab the account ID of the user, and then look up the
+account information.
+
+```typescript
+import {successResult} from "./Result";
+
+function accountInfoFor(userId: number): Promise<Result<Account, string>> {
+    return userInfo(userId)
+        .then(userResult => userResult
+            .map(user => axios.get(`/account/id=${user.accountId}`)
+                .then(response => {
+                    if (response === 200) {
+                        return successResult(response.data)
+                    }
+                    return failureResult(
+                        `Failed to retrieve account for user; user_id: ${userId}; ` +
+                        `account_id: ${user.accountId}; http_status: ${response.status}; ` +
+                        `reason: ${response.statusCode}`
+                    )
+                })
+                .catch(reason => failureResult(reason))
+            )
+            .liftPromise()
+        )
+}
+```
+
+The code above grabs the user, which returns a `Promise<Result<User, string>>`. When the promise resolves, then
+the `Result` from that `Promise` is handed to the `Promise.then()` function. And if that result is a success, it will
+call the callback of the `Result.map` function. That function in turn will attempt to retrieve the account information,
+which results in a `Promise<Result<Account, string>>`. So what comes out of the `Result.map` is
+a `Result<Promise<Result<Account, string>>>`. Eee-ch! 🥵 And now what??? Well, that's where the `Result.liftPromise`
+function comes to the rescue. Calling the `liftPromise` function takes the `Result<Promise<Result<Account, string>>>`
+and spits out a `Promise<Result<Account, string>>>`. Effectively lifting the `Promise` to the outermost position, and
+flattening the `Results`.
+
+> The `Result.liftPromise` function takes the `Result<Promise<Result<Account, string>>>`, lifts the `Promise` out so that it becomes `Promise<Result<Result<Account, string>, string>>` and then flattens the results to yield `Promise<Result<Account, string>>>`.
+
 
 [//]: # (Recall, that when functions a `Result` they are forcing the caller to deal with the fact that the function may fail. Of course, the calling function could call one of the unwrapping functions, such as `getOrDefault&#40;&#41;`, `getOrThrow&#40;&#41;`, or `getOrUndefined&#40;&#41;`, but that defeats the whole point of using `Result`. )
 
