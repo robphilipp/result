@@ -23,7 +23,7 @@ code becomes safer and easier to understand! What's not to like!
 
 ## why?
 
-When you write a function returns the result of an operation that can either succeed or fail, you must decide how to
+When you write that a function returns the result of an operation that can either succeed or fail, you must decide how to
 deal with the error condition. You have several options.
 
 1. The function can throw
