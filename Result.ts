@@ -60,7 +60,7 @@ export type Result<S, F extends ToString> = {
      * @param result The result
      * @return `true` if the results are equal; `false` otherwise
      */
-    equals: (result: Result<S, F>) => boolean
+    equals(result: Result<S, F>): boolean
     /**
      * Determines the equality of this result and the specified one. The results are considered equal if:
      * 1. They are both a success and their values are equal
@@ -68,7 +68,7 @@ export type Result<S, F extends ToString> = {
      * @param result The result
      * @return `false` if the results are equal; `true` otherwise
      */
-    nonEqual: (result: Result<S, F>) => boolean
+    nonEqual(result: Result<S, F>): boolean
 
     /**
      * Applies the specified `mapper` function to the success value of this result, and returns a new
@@ -78,7 +78,7 @@ export type Result<S, F extends ToString> = {
      * @return When this result is a success, then returns a {@link Result} that wraps the result
      * of the `mapper` function. When this result is a failure, then returns this result.
      */
-    map: <SP>(mapper: (value: S) => SP) => Result<SP, F>
+    map<SP>(mapper: (value: S) => SP): Result<SP, F>
     /**
      * Applies the specified `next` function to the success value of this {@link Result}, and returns the
      * result of the `next` function. When this result is a failure, then it does **not** apply the
@@ -87,7 +87,7 @@ export type Result<S, F extends ToString> = {
      * @return When this result is a success, then returns the result of the `next` function. When
      * this result is a failure, then returns this result.
      */
-    andThen: <SP>(next: (value: S) => Result<SP, F>) => Result<SP, F>
+    andThen<SP>(next: (value: S) => Result<SP, F>): Result<SP, F>
     /**
      * Applies the filter to the success value of this result and returns the result if it matches
      * the filter predicate, or a failure if it doesn't match the predicate. When this result is a
@@ -98,7 +98,7 @@ export type Result<S, F extends ToString> = {
      * @return When this result is a success, then returns the success if it matches the predicate or
      * a failure if it does not. When this result is a failure, then returns the failure.
      */
-    filter: (filter: (value: S) => boolean, failureProvider?: () => F) => Result<S, F>
+    filter(filter: (value: S) => boolean, failureProvider?: () => F): Result<S, F>
     /**
      * When this result is a failure, then applies the specified `mapper` function to the failure.
      * When the result is a success, then simply returns a copy of this result. This function is
@@ -106,14 +106,14 @@ export type Result<S, F extends ToString> = {
      * @param mapper A mapper that accepts the failure and returns a new failure
      * @return When the result is a failure, maps the failure to a new failure and returns it
      */
-    mapFailure: <FP>(mapper: (failure: F) => FP) => Result<S, FP>
+    mapFailure<FP>(mapper: (failure: F) => FP): Result<S, FP>
     /**
      * Changes the type of the result when the result is a failure. This is helpful when checking a
      * result for failure, and then need to return a result whose success type is different.
      * @param fallback A fallback failure in case the failure in the result is undefined
      * @return A new failure result with the new success type
      */
-    asFailureOf: <SP>(fallback: F) => Result<SP, F>
+    asFailureOf<SP>(fallback: F): Result<SP, F>
 
     /**
      * Convenience method to make it a bit easier to work with chained promises and results.
@@ -130,7 +130,7 @@ export type Result<S, F extends ToString> = {
      *
      * @return a promise to a result whose success type is that same as the type of the promise's resolved value
      */
-    liftPromise: <SP>() => Promise<Result<SP, F>>
+    liftPromise<SP>(): Promise<Result<SP, F>>
 
     /**
      * When this result is a success, calls the `handler` function on this result's value, and
@@ -141,7 +141,7 @@ export type Result<S, F extends ToString> = {
      * @see onFailure
      * @see always
      */
-    onSuccess: (handler: (value: S) => void) => Result<S, F>
+    onSuccess(handler: (value: S) => void): Result<S, F>
     /**
      * When this result is a failure, calls the `handler` function on this result's error, and
      * returns this result. When this result is a success, then does **not** call the `handler`, but
@@ -151,7 +151,7 @@ export type Result<S, F extends ToString> = {
      * @see onSuccess
      * @see always
      */
-    onFailure: (handler: (error: F) => void) => Result<S, F>
+    onFailure(handler: (error: F) => void): Result<S, F>
     /**
      * Calls the handler regardless whether the result is a success or failure
      * @param handler The callback to perform
@@ -159,7 +159,7 @@ export type Result<S, F extends ToString> = {
      * @see onSuccess
      * @see onFailure
      */
-    always: (handler: () => void) => Result<S, F>
+    always(handler: () => void): Result<S, F>
 
     /**
      * @return When this result is a success, then returns the value. Otherwise returns `undefined`.
@@ -167,7 +167,7 @@ export type Result<S, F extends ToString> = {
      * @see getOrThrow
      * @see failureOrUndefined
      */
-    getOrUndefined: () => S | undefined
+    getOrUndefined(): S | undefined
     /**
      * @return When this result is a success, then returns the value. Otherwise, returns the specified
      * default value.
@@ -175,7 +175,7 @@ export type Result<S, F extends ToString> = {
      * @see getOrThrow
      * @see failureOrUndefined
      */
-    getOrDefault: (value: S) => S
+    getOrDefault(value: S): S
     /**
      * Provides a value by invoking a supplier function if the current context
      * or associated value does not already exist or is undefined.
@@ -183,7 +183,7 @@ export type Result<S, F extends ToString> = {
      * @returns The value either provided by the supplier function or already
      * existing in the associated context.
      */
-    getOr: (supplier: () => S) => S
+    getOr(supplier: () => S): S
     /**
      * @return When this result is a success, then returns the value. Otherwise, throws an error that
      * contains the error in this result.
@@ -191,7 +191,7 @@ export type Result<S, F extends ToString> = {
      * @see getOrDefault
      * @see failureOrUndefined
      */
-    getOrThrow: () => S
+    getOrThrow(): S
 
     /**
      * @return When this result is a failure, then returns the error. Otherwise, returns `undefined`.
@@ -199,7 +199,7 @@ export type Result<S, F extends ToString> = {
      * @see getOrDefault
      * @see getOrThrow
      */
-    failureOrUndefined: () => F | undefined
+    failureOrUndefined(): F | undefined
 }
 
 /**
