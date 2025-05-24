@@ -17,6 +17,7 @@ describe('when creating a Result', () => {
         expect(result.getOrUndefined()).toEqual([1, 2, 3, 4])
         expect(result.getOrThrow()).toEqual([1, 2, 3, 4])
         expect(result.getOrDefault([])).toEqual([1, 2, 3, 4])
+        expect(result.getOr(() => [2, 3, 4, 5])).toEqual([1, 2, 3, 4])
     })
 
     it('should be able to create a failure', () => {
@@ -26,6 +27,7 @@ describe('when creating a Result', () => {
         expect(result.getOrUndefined()).toBeUndefined()
         expect(() => result.getOrThrow()).toThrowError("failed to work")
         expect(result.getOrDefault([2, 4, 6])).toEqual([2, 4, 6])
+        expect(result.getOr(() => [2, 4, 6])).toEqual([2, 4, 6])
     })
 
     it('should be able to map values for successful result', () => {

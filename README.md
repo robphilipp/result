@@ -41,6 +41,7 @@
       - [always](#always)
       - [getOrUndefined](#getorundefined)
       - [getOrDefault](#getordefault)
+      - [getOr](#getOr)
       - [getOrThrow](#getorthrow)
       - [failureOrUndefined](#failureorundefined)
 
@@ -1066,7 +1067,7 @@ Returns
 When this result is a success, then returns the value. Otherwise returns `undefined`.
 
 
-See also `getOrDefault`, `getOrThrow`, `failureOrUndefined`
+See also `getOrDefault`, `getOrThrow`, `failureOrUndefined`, `getOr`
 
 <hr>
 
@@ -1080,6 +1081,21 @@ Returns
 
 When this result is a success, then returns the value. Otherwise, returns the specified
 default value.
+
+See also `getOrUndefined`, `getOrThrow`, `failureOrUndefined`, `getOr`
+
+<hr>
+
+#### getOr
+
+```typescript
+getOrDefault: (supplier: () => S) => S
+```
+
+Returns
+
+When this result is a success, then returns the value. Otherwise, returns the value
+returned by the specified supplier function.
 
 See also `getOrUndefined`, `getOrThrow`, `failureOrUndefined`
 
@@ -1096,7 +1112,7 @@ Returns
 When this result is a success, then returns the value. Otherwise, throws an error that
 contains the error in this result.
 
-See also `getOrUndefined`, `getOrDefault`, `failureOrUndefined`   
+See also `getOrUndefined`, `getOrDefault`, `failureOrUndefined`, `getOr`   
 
 <hr>
 

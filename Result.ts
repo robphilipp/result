@@ -76,11 +76,11 @@ export type Result<S, F extends ToString> = {
      * then it does **not** apply the `mapper`, but rather merely returns this result.
      * @param mapper The mapper function that accepts the success value and returns a new value.
      * @return When this result is a success, then returns a {@link Result} that wraps the result
-     * of the `mapper` function. When this result is a failure, the returns this result.
+     * of the `mapper` function. When this result is a failure, then returns this result.
      */
     map: <SP>(mapper: (value: S) => SP) => Result<SP, F>
     /**
-     * Applies the specified `next` function to the success value of this result, and returns the
+     * Applies the specified `next` function to the success value of this {@link Result}, and returns the
      * result of the `next` function. When this result is a failure, then it does **not** apply the
      * `next` function, but rather merely returns the failure result.
      * @param next The function to apply to this result's success value
@@ -176,6 +176,14 @@ export type Result<S, F extends ToString> = {
      * @see failureOrUndefined
      */
     getOrDefault: (value: S) => S
+    /**
+     * Provides a value by invoking a supplier function if the current context
+     * or associated value does not already exist or is undefined.
+     * @param supplier - A function that supplies a value to return.
+     * @returns The value either provided by the supplier function or already
+     * existing in the associated context.
+     */
+    getOr: (supplier: () => S) => S
     /**
      * @return When this result is a success, then returns the value. Otherwise, throws an error that
      * contains the error in this result.
@@ -275,6 +283,7 @@ function resultFrom<S, F extends ToString>(result: ResultType<S, F>): Result<S, 
 
         getOrUndefined: () => success,
         getOrDefault: (value: S) => (success !== undefined && failure === undefined) ? success : value,
+        getOr: (supplier: () => S) => (success !== undefined && failure === undefined) ? success : supplier(),
         getOrThrow: () => getOrThrow(success, failure),
 
         failureOrUndefined: () => failure
