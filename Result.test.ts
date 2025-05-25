@@ -5,7 +5,7 @@ import {
     reduceToResult,
     Result,
     resultFromAll, resultFromAny,
-    successResult
+    successResult, ToString
 } from './Result'
 
 describe('when creating a Result', () => {
@@ -30,148 +30,221 @@ describe('when creating a Result', () => {
         expect(result.getOr(() => [2, 4, 6])).toEqual([2, 4, 6])
     })
 
-    it('should be able to map values for successful result', () => {
-        const result = successResult([1, 2, 3, 4]).map(() => [6, 7, 8, 9, 10])
-        expect(result.succeeded).toBeTruthy()
-        expect(result.failed).toBeFalsy()
-        expect(result.getOrUndefined()).toBeDefined()
-        expect(result.getOrUndefined()).toEqual([6, 7, 8, 9, 10])
-        expect(result.getOrDefault([])).toEqual([6, 7, 8, 9, 10])
-        expect(result.getOrThrow()).toEqual([6, 7, 8, 9, 10])
+    describe('when doing a map', () => {
+        it('should remain a failure when mapping result of failure', () => {
+            const result = failureResult("failed to work").map(() => [6, 7, 8, 9, 10])
+            expect(result.failed).toBeTruthy()
+            expect(result.succeeded).toBeFalsy()
+            expect(result.getOrUndefined()).toBeUndefined()
+            expect(() => result.getOrThrow()).toThrowError("failed to work")
+            expect(result.getOrDefault([2, 4, 6])).toEqual([2, 4, 6])
+        })
+
+        it('should be able to map a failure when mapping result of failure', () => {
+            const result = failureResult<unknown, string>("failed to work").mapFailure(() => "failed to work, but didn't")
+            expect(result.failed).toBeTruthy()
+            expect(result.succeeded).toBeFalsy()
+            expect(result.getOrUndefined()).toBeUndefined()
+            expect(result.error).toBe("failed to work, but didn't")
+            expect(() => result.getOrThrow()).toThrowError("failed to work, but didn't")
+        })
     })
 
-    it('should remain a failure when mapping result of failure', () => {
-        const result = failureResult("failed to work").map(() => [6, 7, 8, 9, 10])
-        expect(result.failed).toBeTruthy()
-        expect(result.succeeded).toBeFalsy()
-        expect(result.getOrUndefined()).toBeUndefined()
-        expect(() => result.getOrThrow()).toThrowError("failed to work")
-        expect(result.getOrDefault([2, 4, 6])).toEqual([2, 4, 6])
+    describe('when doing a filter', () => {
+        it('should be able to filter success result with met predicate', () => {
+            const result = successResult(5).filter(value => value === 5)
+            expect(result.succeeded).toBeTruthy()
+            expect(result.getOrThrow()).toBe(5)
+        })
+
+        it('should be able to filter success with unmet predicate', () => {
+            const result = successResult<number, string>(5)
+                .filter(value => value % 2 === 0, () => 'must be odd')
+            expect(result.failed).toBeTruthy()
+            expect(result.error).toBe('must be odd')
+            // expect(result.error?.toString()).toBe('Predicate not satisfied')
+        })
+
     })
 
-    it('should be able to map a failure when mapping result of failure', () => {
-        const result = failureResult<unknown, string>("failed to work").mapFailure(() => "failed to work, but didn't")
-        expect(result.failed).toBeTruthy()
-        expect(result.succeeded).toBeFalsy()
-        expect(result.getOrUndefined()).toBeUndefined()
-        expect(result.error).toBe("failed to work, but didn't")
-        expect(() => result.getOrThrow()).toThrowError("failed to work, but didn't")
+    describe('when doing a flat map', () => {
+        it('should be able to flat-map values for successful result', () => {
+            const result = successResult([1, 2, 3, 4])
+                .flatMap(() => successResult([6, 7, 8, 9, 10]))
+            expect(result.succeeded).toBeTruthy()
+            expect(result.failed).toBeFalsy()
+            expect(result.getOrUndefined()).toBeDefined()
+            expect(result.getOrUndefined()).toEqual([6, 7, 8, 9, 10])
+            expect(result.getOrDefault([])).toEqual([6, 7, 8, 9, 10])
+            expect(result.getOrThrow()).toEqual([6, 7, 8, 9, 10])
+        })
+
+        it('should remain a failure when flat-mapping result of failure', () => {
+            const result = failureResult("failed to work")
+                .flatMap(() => successResult([6, 7, 8, 9, 10]))
+            expect(result.failed).toBeTruthy()
+            expect(result.succeeded).toBeFalsy()
+            expect(result.getOrUndefined()).toBeUndefined()
+            expect(() => result.getOrThrow()).toThrowError("failed to work")
+            expect(result.getOrDefault([2, 4, 6])).toEqual([2, 4, 6])
+        })
     })
 
-    it('should be able to filter success result with met predicate', () => {
-        const result = successResult(5).filter(value => value === 5)
-        expect(result.succeeded).toBeTruthy()
-        expect(result.getOrThrow()).toBe(5)
+    describe('when applying conditionalMap', () => {
+        it('should be able to do a conditional map on a success', () => {
+            const result = successResult(5)
+                .conditionalMap(
+                    value => value % 2 === 1,
+                    value => value * 10
+                )
+            expect(result.succeeded).toBeTruthy()
+            expect(result.failed).toBeFalsy()
+            expect(result.getOrThrow()).toBe(50)
+        })
+
+        it('should pass through the value as a success when condition is not met', () => {
+            const result = successResult(5)
+                .conditionalMap(
+                    value => value % 2 === 0,
+                    value => value * 10
+                )
+            expect(result.succeeded).toBeTruthy()
+            expect(result.failed).toBeFalsy()
+            expect(result.getOrThrow()).toBe(5)
+        })
+
+        it('should be able to do a conditional map on a failure', () => {
+            const result = failureResult<number, string>("oops")
+                .conditionalMap(
+                    value => value % 2 === 0,
+                    value => value * 10
+                )
+            expect(result.succeeded).toBeFalsy()
+            expect(result.failed).toBeTruthy()
+            expect(result.getOrUndefined()).toBeUndefined()
+        })
     })
 
-    it('should be able to filter success with unmet predicate', () => {
-        const result = successResult<number, string>(5).filter(value => value % 2 === 0, () => 'must be odd')
-        expect(result.failed).toBeTruthy()
-        expect(result.error).toBe('must be odd')
-        // expect(result.error?.toString()).toBe('Predicate not satisfied')
+    describe('when applying conditionalFlatMap', () => {
+        it('should be able to do a conditional flatmap on a success', () => {
+            const result = successResult<number, string>(5)
+                .conditionalFlatMap(
+                    value => value % 2 === 1,
+                    value => successResult(value * 10)
+                )
+            expect(result.succeeded).toBeTruthy()
+            expect(result.failed).toBeFalsy()
+            expect(result.getOrThrow()).toBe(50)
+        })
+
+        it('should pass through the value as a success when condition is not met', () => {
+            const result = successResult<number, string>(5)
+                .conditionalFlatMap(
+                    value => value % 2 === 0,
+                    value => successResult(value * 10)
+                )
+            expect(result.succeeded).toBeTruthy()
+            expect(result.failed).toBeFalsy()
+            expect(result.getOrThrow()).toBe(5)
+        })
+
+        it('should be able to do a conditional map on a failure', () => {
+            const result = failureResult<number, string>("oops")
+                .conditionalFlatMap(
+                    value => value % 2 === 0,
+                    value => successResult(value * 10)
+                )
+            expect(result.succeeded).toBeFalsy()
+            expect(result.failed).toBeTruthy()
+            expect(result.getOrUndefined()).toBeUndefined()
+        })
     })
 
-    it('should be able to flat-map values for successful result', () => {
-        const result = successResult([1, 2, 3, 4]).andThen(() => successResult([6, 7, 8, 9, 10]))
-        expect(result.succeeded).toBeTruthy()
-        expect(result.failed).toBeFalsy()
-        expect(result.getOrUndefined()).toBeDefined()
-        expect(result.getOrUndefined()).toEqual([6, 7, 8, 9, 10])
-        expect(result.getOrDefault([])).toEqual([6, 7, 8, 9, 10])
-        expect(result.getOrThrow()).toEqual([6, 7, 8, 9, 10])
-    })
-
-    it('should remain a failure when flat-mapping result of failure', () => {
-        const result = failureResult("failed to work").andThen(() => successResult([6, 7, 8, 9, 10]))
-        expect(result.failed).toBeTruthy()
-        expect(result.succeeded).toBeFalsy()
-        expect(result.getOrUndefined()).toBeUndefined()
-        expect(() => result.getOrThrow()).toThrowError("failed to work")
-        expect(result.getOrDefault([2, 4, 6])).toEqual([2, 4, 6])
-    })
-
-    it('should be able to apply a mapping to an array of results and combine it into one result', () => {
-        const results: Array<Result<string, string>> = [
-            successResult("an apple"),
-            successResult("busy bumble bees"),
-            successResult("changing clothing causes constipation"),
-            successResult("doorknobs doorbells dinner ding dong")
-        ]
-        const combined = forEachResult<string, string, number, string>(
-            results,
-            result => result.map(value => value.split(" ").length)
-        )
-        expect(combined.succeeded).toBeTruthy()
-        expect(combined.failed).toBeFalsy()
-        expect(combined.getOrUndefined()).toBeDefined()
-        expect(combined.getOrUndefined()).toEqual([2, 3, 4, 5])
-        expect(combined.getOrDefault([]).length).toBe(4)
-    })
+    describe('when flattening nested results', () => {
+        it('should be able to apply a mapping to an array of results and combine it into one result', () => {
+            const results: Array<Result<string, string>> = [
+                successResult("an apple"),
+                successResult("busy bumble bees"),
+                successResult("changing clothing causes constipation"),
+                successResult("doorknobs doorbells dinner ding dong")
+            ]
+            const combined = forEachResult<string, string, number, string>(
+                results,
+                result => result.map(value => value.split(" ").length)
+            )
+            expect(combined.succeeded).toBeTruthy()
+            expect(combined.failed).toBeFalsy()
+            expect(combined.getOrUndefined()).toBeDefined()
+            expect(combined.getOrUndefined()).toEqual([2, 3, 4, 5])
+            expect(combined.getOrDefault([]).length).toBe(4)
+        })
 
 
-    it('should not be able to apply a mapping to an array of results and combine it into one result when it contains failures', () => {
-        const results: Array<Result<string, string>> = [
-            successResult("an apple"),
-            successResult("busy bumble bees"),
-            successResult("changing clothing causes constipation"),
-            failureResult("doorknobs doorbells dinner ding dong"),
-            failureResult("oops only one operation ordinarily opens")
-        ]
-        const combined = forEachResult<string, string, number, string>(
-            results,
-            result => result.map(value => value.split(" ").length)
-        )
-        expect(combined.failed).toBeTruthy()
-        expect(combined.succeeded).toBeFalsy()
-        expect(combined.getOrUndefined()).toBeUndefined()
-        expect(combined.error).toEqual([
-            "doorknobs doorbells dinner ding dong",
-            "oops only one operation ordinarily opens"
-        ])
-    })
+        it('should not be able to apply a mapping to an array of results and combine it into one result when it contains failures', () => {
+            const results: Array<Result<string, string>> = [
+                successResult("an apple"),
+                successResult("busy bumble bees"),
+                successResult("changing clothing causes constipation"),
+                failureResult("doorknobs doorbells dinner ding dong"),
+                failureResult("oops only one operation ordinarily opens")
+            ]
+            const combined = forEachResult<string, string, number, string>(
+                results,
+                result => result.map(value => value.split(" ").length)
+            )
+            expect(combined.failed).toBeTruthy()
+            expect(combined.succeeded).toBeFalsy()
+            expect(combined.getOrUndefined()).toBeUndefined()
+            expect(combined.error).toEqual([
+                "doorknobs doorbells dinner ding dong",
+                "oops only one operation ordinarily opens"
+            ])
+        })
 
-    it('should be able to reduce an array of results into one result', () => {
-        const inputValues = [
-            "an apple",
-            "busy bumble bees",
-            "changing clothing causes constipation",
-            "doorknobs doorbells dinner ding dong"
-        ]
-        const reduced = reduceToResult<string, number[], string>(
-            inputValues,
-            (values, inputValue) => {
-                values.push(inputValue.split(" ").length)
-                return successResult(values)
-            },
-            []
-        )
-        expect(reduced.succeeded).toBeTruthy()
-        expect(reduced.failed).toBeFalsy()
-        expect(reduced.getOrUndefined()).toBeDefined()
-        expect(reduced.getOrUndefined()).toEqual([2, 3, 4, 5])
-        expect(reduced.getOrDefault([]).length).toBe(4)
-    })
+        it('should be able to reduce an array of results into one result', () => {
+            const inputValues = [
+                "an apple",
+                "busy bumble bees",
+                "changing clothing causes constipation",
+                "doorknobs doorbells dinner ding dong"
+            ]
+            const reduced = reduceToResult<string, number[], string>(
+                inputValues,
+                (values, inputValue) => {
+                    values.push(inputValue.split(" ").length)
+                    return successResult(values)
+                },
+                []
+            )
+            expect(reduced.succeeded).toBeTruthy()
+            expect(reduced.failed).toBeFalsy()
+            expect(reduced.getOrUndefined()).toBeDefined()
+            expect(reduced.getOrUndefined()).toEqual([2, 3, 4, 5])
+            expect(reduced.getOrDefault([]).length).toBe(4)
+        })
 
-    it('should not be able to reduce an array of results into one result when it contains failures', () => {
-        const inputValues = [
-            "an apple",
-            "busy bumble bees",
-            "changing clothing causes constipation",
-            "doorknobs doorbells dinner ding dong"
-        ]
-        const reduced = reduceToResult<string, number[], string>(
-            inputValues,
-            (values, inputValue) => {
-                if (inputValue.startsWith('d')) return failureResult("oops only one operation ordinarily opens")
-                values.push(inputValue.split(" ").length)
-                return successResult(values)
-            },
-            []
-        )
-        expect(reduced.failed).toBeTruthy()
-        expect(reduced.succeeded).toBeFalsy()
-        expect(reduced.getOrUndefined()).toBeUndefined()
-        expect(reduced.error).toEqual(["oops only one operation ordinarily opens"])
+        it('should not be able to reduce an array of results into one result when it contains failures', () => {
+            const inputValues = [
+                "an apple",
+                "busy bumble bees",
+                "changing clothing causes constipation",
+                "doorknobs doorbells dinner ding dong"
+            ]
+            const reduced = reduceToResult<string, number[], string>(
+                inputValues,
+                (values, inputValue) => {
+                    if (inputValue.startsWith('d')) return failureResult("oops only one operation ordinarily opens")
+                    values.push(inputValue.split(" ").length)
+                    return successResult(values)
+                },
+                []
+            )
+            expect(reduced.failed).toBeTruthy()
+            expect(reduced.succeeded).toBeFalsy()
+            expect(reduced.getOrUndefined()).toBeUndefined()
+            expect(reduced.error).toEqual(["oops only one operation ordinarily opens"])
+        })
+
     })
 
     it('should skip onFailure when result is a success', () => {

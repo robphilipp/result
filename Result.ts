@@ -77,6 +77,7 @@ export type Result<S, F extends ToString> = {
      * @param mapper The mapper function that accepts the success value and returns a new value.
      * @return When this result is a success, then returns a {@link Result} that wraps the result
      * of the `mapper` function. When this result is a failure, then returns this result.
+     * @see flatMap
      */
     map<SP>(mapper: (value: S) => SP): Result<SP, F>
     /**
@@ -86,8 +87,47 @@ export type Result<S, F extends ToString> = {
      * @param next The function to apply to this result's success value
      * @return When this result is a success, then returns the result of the `next` function. When
      * this result is a failure, then returns this result.
+     * @see andThen
+     * @see conditionalFlatMap
+     */
+    flatMap<SP>(next: (value: S) => Result<SP, F>): Result<SP, F>
+    /**
+     @deprecated Use {@link flatMap} instead.
+      * Applies the specified `next` function to the success value of this {@link Result}, and returns the
+      * result of the `next` function. When this result is a failure, then it does **not** apply the
+      * `next` function, but rather merely returns the failure result.
+     * @param next The function to apply to this result's success value
+     * @return When this result is a success, then returns the result of the `next` function. When
+     * this result is a failure, then returns this result.
+     * @see flatMap
      */
     andThen<SP>(next: (value: S) => Result<SP, F>): Result<SP, F>
+    /**
+     * *NOTE* that unlike the {@link map} and {@link flatMap} functions, this conditional mapping
+     * requires that the Result's value type is the same as the input value type.
+     *
+     * Applies a mapping function to a value based on a predicate and returns a result. When the predicate
+     * is met, then applies the mapping. When the predicate is not met, then returns the original value.
+     *
+     * @param predicate A function that determines whether the provided value satisfies a condition.
+     * @param mapper A function that transforms the value if the predicate is true.
+     * @return A `Result` object containing either the transformed success value or the failure value.
+     */
+    conditionalMap(predicate: (value: S) => boolean, mapper: (value: S) => S): Result<S, F>
+    /**
+     * *NOTE* that unlike the {@link map} and {@link flatMap} functions, this conditional mapping
+     * requires that the Result's value type is the same as the input value type.
+     *
+     * Applies a mapping function to a value based on a predicate and returns a result. When the predicate
+     * is met, then applies the mapping. When the predicate is not met, then returns the original value.
+     *
+     * @param predicate A function that determines whether the provided value satisfies a condition.
+     * @param next A function that transforms the value if the predicate is true.
+     * @param next The function to apply to this result's success value
+     * @return When this result is a success, then returns the result of the `next` function. When
+     * this result is a failure, then returns this result.
+     */
+    conditionalFlatMap(predicate: (value: S) => boolean, next: (value: S) => Result<S, F>): Result<S, F>
     /**
      * Applies the filter to the success value of this result and returns the result if it matches
      * the filter predicate, or a failure if it doesn't match the predicate. When this result is a
@@ -268,7 +308,10 @@ function resultFrom<S, F extends ToString>(result: ResultType<S, F>): Result<S, 
         nonEqual: (result: Result<S, F>) => !equalsResult(result, success, failure),
 
         map: <SP>(mapper: (value: S) => SP) => mapValue(mapper, success, failure),
-        andThen: <SP>(next: (value: S) => Result<SP, F>) => thenValue(next, success, failure),
+        andThen: <SP>(next: (value: S) => Result<SP, F>) => flatMapValue(next, success, failure),
+        flatMap: <SP>(next: (value: S) => Result<SP, F>) => flatMapValue(next, success, failure),
+        conditionalMap: (predicate: (value: S) => boolean, mapper: (value: S) => S) => conditionalMapValue(predicate, mapper, success, failure),
+        conditionalFlatMap: (predicate: (value: S) => boolean, next: (value: S) => Result<S, F>) => conditionalFlatMapValue(predicate, next, success, failure),
         filter: (filter: (value: S) => boolean, failureProvider?: () => F) => filterValue(filter, success, failure, failureProvider),
         mapFailure: <FP>(mapper: (failure: F) => FP) => mapFailure(mapper, success, failure),
         asFailureOf: <SP>(fallback: F) => asFailure<SP, F>(failure || fallback),
@@ -314,7 +357,7 @@ function equalsResult<S, F extends ToString>(result: Result<S, F>, success?: S, 
  * @param [failure=undefined] The failure (which may be undefined)
  * @return A {@link Result} that holds the mapped success value (when `success` is defined) or the failure
  * when `success` is not defined).
- * @see thenValue
+ * @see flatMapValue
  */
 function mapValue<S, SP, F extends ToString>(mapper: (value: S) => SP, success?: S, failure?: F): Result<SP, F> {
     return (success !== undefined ?
@@ -326,7 +369,7 @@ function mapValue<S, SP, F extends ToString>(mapper: (value: S) => SP, success?:
 /**
  * When the specified `success` is defined, then applies the specified `next` function to the success
  * value and returns the result from the `next` function. When the specified `success` is not defined,
- * the wraps the failure into a result and returns it
+ * then wraps the failure into a result and returns it
  * @param next A function that accepts a next value and returns a {@link Result}
  * @param [success=undefined] The success value (which may be undefined)
  * @param [failure=undefined] The failure (which may be undefined)
@@ -334,7 +377,7 @@ function mapValue<S, SP, F extends ToString>(mapper: (value: S) => SP, success?:
  * specified `next` function. Otherwise, returns the failure wrapped in a {@link Result}.
  * @see mapValue
  */
-function thenValue<S, SP, F extends ToString>(
+function flatMapValue<S, SP, F extends ToString>(
     next: (value: S) => Result<SP, F>,
     success?: S,
     failure?: F
@@ -344,6 +387,50 @@ function thenValue<S, SP, F extends ToString>(
             resultFrom({failure})
     ) as Result<SP, F>
 }
+
+/**
+ * Applies a mapping function to a value based on a predicate and returns a result.
+ *
+ * @param predicate A function that determines whether the provided value satisfies a condition.
+ * @param mapper A function that transforms the value if the predicate is true.
+ * @param [success=undefined] The success value (which may be undefined)
+ * @param [failure=undefined] The failure (which may be undefined)
+ * @return A `Result` object containing either the transformed success value or the failure value.
+ */
+function conditionalMapValue<S, F extends ToString>(
+    predicate: (value: S) => boolean,
+    mapper: (value: S) => S,
+    success?: S,
+    failure?: F
+): Result<S, F> {
+    if (success === undefined) {
+        return resultFrom({failure})
+    }
+    return predicate(success) ? resultFrom({success: mapper(success)}) : successResult(success)
+}
+
+/**
+ * Applies a mapping function to a value based on a predicate and returns a result.
+ *
+ * @param predicate A function that determines whether the provided value satisfies a condition.
+ * @param next A function that accepts a next value and returns a {@link Result}
+ * @param [success=undefined] The success value (which may be undefined)
+ * @param [failure=undefined] The failure (which may be undefined)
+ * @return A `Result` object containing either the transformed success value or the failure value.
+ */
+function conditionalFlatMapValue<S, F extends ToString>(
+    predicate: (value: S) => boolean,
+    next: (value: S) => Result<S, F>,
+    success?: S,
+    failure?: F
+): Result<S, F> {
+    if (success === undefined) {
+        return resultFrom({failure})
+    }
+    return predicate(success) ? next(success) : successResult(success)
+}
+
+
 
 /**
  * When the specified `success` is defined, then applies the specified filter predicate to the value. When the
