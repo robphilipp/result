@@ -31,7 +31,10 @@
       - [equals](#equals)
       - [nonEqual](#nonequal)
       - [map](#map)
-      - [andThen](#andthen)
+      - [andThen @deprecated, use flatMap](#andthen)
+      - [flatMap](#flatMap)
+      - [conditionalMap](#conditionalMap)
+      - [conditionalFlatMap](#conditionalFlatMap)
       - [filter](#filter)
       - [mapFailure](#mapfailure)
       - [asFailureOf](#asfailureof)
@@ -888,10 +891,10 @@ When this result is a success, then returns a `Result<SP, F>` that wraps the res
 
 <hr>
 
-#### andThen
+#### flatMap
 
 ```typescript
-andThen: <SP>(next: (value: S) => Result<SP, F>) => Result<SP, F>
+flatMap: <SP>(next: (value: S) => Result<SP, F>) => Result<SP, F>
 ```
 
 Applies the specified `next` function to the success value of this result, and returns the
@@ -906,6 +909,75 @@ Returns
 
 When this result is a success, then returns the `Result<SP, F>` of the `next` function. When
 this result is a failure, then returns this `Result<SP, F>` (with the undefined success result type changed to `SP`).
+
+<hr>
+
+#### andThen
+
+```typescript
+andThen: <SP>(next: (value: S) => Result<SP, F>) => Result<SP, F>
+```
+
+**DEPRECATED** use flatMap
+
+Applies the specified `next` function to the success value of this result, and returns the
+result of the `next` function. When this result is a failure, then it does **not** apply the
+`next` function, but rather merely returns the failure result.
+
+Arguments
+
+- `next: (value: S) => Result<SP, F>` The function to apply to this result's success value
+
+Returns
+
+When this result is a success, then returns the `Result<SP, F>` of the `next` function. When
+this result is a failure, then returns this `Result<SP, F>` (with the undefined success result type changed to `SP`).
+
+<hr>
+
+#### conditionalMap
+
+```typescript
+conditionalMap: (predicate: (value: S) => boolean, mapper: (value: S) => S) => Result<S, F>
+```
+
+*NOTE* that unlike the {@link map} and {@link flatMap} functions, this conditional mapping
+requires that the Result's value type is the same as the input value type.
+
+Applies a mapping function to a value based on a predicate and returns a result. When the predicate
+is met, then applies the mapping. When the predicate is not met, then returns the original value.
+
+Arguments
+
+- `predicate: (value: S) => boolean` A function that determines whether the provided value satisfies a condition.
+- `mapper: (value: S) => S` A function that transforms the value if the predicate is true.
+
+Returns
+
+A `Result<S, F>` object containing either the transformed success value or the failure value.
+
+<hr>
+
+#### conditionalFlatmap
+
+```typescript
+conditionalFlatMap: (predicate: (value: S) => boolean, next: (value: S) => Result<S, F>) => Result<S, F>
+```
+
+*NOTE* that unlike the {@link map} and {@link flatMap} functions, this conditional mapping
+requires that the Result's value type is the same as the input value type.
+
+Applies a mapping function to a value based on a predicate and returns a result. When the predicate
+is met, then applies the mapping. When the predicate is not met, then returns the original value.
+
+Arguments
+
+- `predicate: (value: S) => boolean` A function that determines whether the provided value satisfies a condition.
+- `next: (value: S) => Result<SP, F>` The function to apply to this result's success value
+
+Returns
+
+A `Result<S, F>` object containing either the transformed success value or the failure value.
 
 <hr>
 
