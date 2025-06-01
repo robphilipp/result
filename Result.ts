@@ -189,7 +189,7 @@ export class Result<S, F extends ToString> {
      *
      * @example
      * ```typescript
-     * // result is 50 (= 5 * 10)
+     * // result is 50 (= 5 * 10) because the value is an odd number
      * const result = successResult(5)
      *      .conditionalMap(
      *          // when the value is odd...
@@ -197,6 +197,21 @@ export class Result<S, F extends ToString> {
      *          // ...then multiply it by 10
      *          value => value * 10
      *      ).getOrDefault(0)
+     *
+     * // result is 6 because it isn't an odd number
+     * const result = successResult(6)
+     *     .conditionalMap(
+     *         value => value % 2 === 1,
+     *         value => value * 10
+     *     ).getOrDefault(0)
+     *
+     * // failure result so the conditional map is skipped
+     * const result = failureResult<number, string>("oops")
+     *     .conditionalMap(
+     *         value => value % 2 === 0,
+     *         value => value * 10
+     *     ).getOrDefault(0)
+     *
      * ```
      */
     conditionalMap(predicate: (value: S) => boolean, mapper: (value: S) => S): Result<S, F> {
@@ -219,6 +234,32 @@ export class Result<S, F extends ToString> {
      * @param next A function that transforms the value if the predicate is true.
      * @return When this result is a success, then returns the result of the `next` function. When
      * this result is a failure, then returns this result.
+     *
+     * @example
+     * ```typescript
+     * // result is 50 (= 5 * 10) because the value is an odd number
+     * const result = successResult(5)
+     *      .conditionalFlatMap(
+     *          // when the value is odd...
+     *          value => value % 2 === 1,
+     *          // ...then multiply it by 10
+     *          value => successResult(value * 10)
+     *      ).getOrDefault(0)
+     *
+     * // result is 6 because it isn't an odd number
+     * const result = successResult(6)
+     *     .conditionalFlatMap(
+     *         value => value % 2 === 1,
+     *         value => successResult(value * 10)
+     *     ).getOrDefault(0)
+     *
+     * // failure result so the conditional map is skipped
+     * const result = failureResult<number, string>("oops")
+     *     .conditionalFlatMap(
+     *         value => value % 2 === 0,
+     *         value => successResult(value * 10)
+     *     ).getOrDefault(0)
+     * ```
      */
     conditionalFlatMap(predicate: (value: S) => boolean, next: (value: S) => Result<S, F>): Result<S, F> {
         if (this.succeeded && this.value !== undefined) {
@@ -236,12 +277,39 @@ export class Result<S, F extends ToString> {
      * does not match the predicate
      * @return When this result is a success, then returns the success if it matches the predicate or
      * a failure if it does not. When this result is a failure, then returns the failure.
+     *
+     * @example
+     * ```typescript
+     * // result is 5
+     * const result = successResult(5)
+     *      .filter(value => value === 5)
+     *      .getOrDefault(0)
+     *
+     * // failure result with "Result filter predicate not satisfied" error value
+     * const result = successResult<number, string>(5)
+     *      // uses default failure provider
+     *      .filter(value => value % 2 === 0)
+     *      .getOrDefault(0)
+     *
+     * // failure result with the specified "must be odd" error value
+     * const result = successResult<number, string>(5)
+     *      .filter(
+     *          // filter predicate
+     *          value => value % 2 === 0,
+     *          // failure provider
+     *          () => 'must be odd'
+     *      )
+     *      .getOrDefault(0)
+     *
+     * // result is a failure
+     *
+     * ```
      */
     filter(filter: (value: S) => boolean, failureProvider?: () => F): Result<S, F> {
         if (this.succeeded && this.value !== undefined) {
             return filter(this.value) ?
                 new Result<S, F>({ success: this.value }) :
-                new Result<S, F>({ failure: failureProvider ? failureProvider() : { toString: () => "Predicate not satisfied" } as F });
+                new Result<S, F>({ failure: (failureProvider ? failureProvider() : "Result filter predicate not satisfied") as F });
         }
         return new Result<S, F>({ failure: this.error });
     }

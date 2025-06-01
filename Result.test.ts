@@ -64,12 +64,20 @@ describe('when creating a Result', () => {
 
     describe('when doing a filter', () => {
         it('should be able to filter success result with met predicate', () => {
-            const result = successResult(5).filter(value => value === 5)
+            const result = successResult(5)
+                .filter(value => value === 5)
             expect(result.succeeded).toBeTruthy()
             expect(result.getOrThrow()).toBe(5)
         })
 
         it('should be able to filter success with unmet predicate', () => {
+            const result = successResult<number, string>(5)
+                .filter(value => value % 2 === 0)
+            expect(result.failed).toBeTruthy()
+            expect(result.error).toBe('Result filter predicate not satisfied')
+        })
+
+        it('should be able to filter success with unmet predicate with failure provider', () => {
             const result = successResult<number, string>(5)
                 .filter(value => value % 2 === 0, () => 'must be odd')
             expect(result.failed).toBeTruthy()
