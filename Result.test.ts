@@ -1,11 +1,13 @@
 import {
     failureResult,
-    forEachElement, forEachPromise,
+    forEachElement,
+    forEachPromise,
     forEachResult,
     reduceToResult,
     Result,
-    resultFromAll, resultFromAny,
-    successResult, ToString
+    resultFromAll,
+    resultFromAny,
+    successResult
 } from './Result'
 
 describe('when creating a Result', () => {
@@ -31,6 +33,9 @@ describe('when creating a Result', () => {
     })
 
     describe('when doing a map', () => {
+        it('should be able to map values for successful result', () => {
+            expect(successResult("original result").map(value => value.length).getOrThrow()).toEqual(15)
+        })
         it('should remain a failure when mapping result of failure', () => {
             const result = failureResult("failed to work").map(() => [6, 7, 8, 9, 10])
             expect(result.failed).toBeTruthy()
@@ -41,12 +46,19 @@ describe('when creating a Result', () => {
         })
 
         it('should be able to map a failure when mapping result of failure', () => {
-            const result = failureResult<unknown, string>("failed to work").mapFailure(() => "failed to work, but didn't")
+            const result = failureResult<unknown, string>("failed to work")
+                .mapFailure(() => "failed to work, but didn't")
             expect(result.failed).toBeTruthy()
             expect(result.succeeded).toBeFalsy()
             expect(result.getOrUndefined()).toBeUndefined()
             expect(result.error).toBe("failed to work, but didn't")
             expect(() => result.getOrThrow()).toThrowError("failed to work, but didn't")
+        })
+
+        it('should be able to change the type the of failure (wont compile if broken)', () => {
+            const result: Result<unknown, string> = failureResult<unknown, string>("failed to work")
+            const updatedResult: Result<number, string> = result.asFailureOf<number>("The success result is now a number")
+            expect(updatedResult.getOrDefault(10)).toBe(10)
         })
     })
 
@@ -62,7 +74,6 @@ describe('when creating a Result', () => {
                 .filter(value => value % 2 === 0, () => 'must be odd')
             expect(result.failed).toBeTruthy()
             expect(result.error).toBe('must be odd')
-            // expect(result.error?.toString()).toBe('Predicate not satisfied')
         })
 
     })
@@ -82,6 +93,16 @@ describe('when creating a Result', () => {
         it('should remain a failure when flat-mapping result of failure', () => {
             const result = failureResult("failed to work")
                 .flatMap(() => successResult([6, 7, 8, 9, 10]))
+            expect(result.failed).toBeTruthy()
+            expect(result.succeeded).toBeFalsy()
+            expect(result.getOrUndefined()).toBeUndefined()
+            expect(() => result.getOrThrow()).toThrowError("failed to work")
+            expect(result.getOrDefault([2, 4, 6])).toEqual([2, 4, 6])
+        })
+
+        it('should become a failure when flat-mapping result of success', () => {
+            const result = successResult([6, 7, 8, 9, 10])
+                .flatMap(() => failureResult("failed to work"))
             expect(result.failed).toBeTruthy()
             expect(result.succeeded).toBeFalsy()
             expect(result.getOrUndefined()).toBeUndefined()
@@ -272,17 +293,19 @@ describe('when comparing results', () => {
     it('should treat successes and failures as unequal', () => {
         expect(successResult<string, string>("yay!").equals(failureResult("damn!"))).toBeFalsy()
         expect(failureResult<string, string>("damn!").equals(successResult("yay!"))).toBeFalsy()
+        expect(failureResult<string, string>("damn!").nonEqual(successResult("yay!"))).toBeTruthy()
     })
 
     it('should treat success as equal iff their values are equal', () => {
         expect(successResult<string, string>("yay!").equals(successResult("yay!"))).toBeTruthy()
         expect(successResult<string, string>("yay!").equals(successResult("yippy!"))).toBeFalsy()
+        expect(successResult<string, string>("yay!").nonEqual(successResult("yippy!"))).toBeTruthy()
     })
 
-    it('should tread failures as equal iff their errors are equal', () => {
+    it('should treat failures as equal iff their errors are equal', () => {
         expect(failureResult<string, string>("damn!").equals(failureResult("damn!"))).toBeTruthy()
         expect(failureResult<string, string>("damn!").equals(failureResult("shit!"))).toBeFalsy()
-
+        expect(failureResult<string, string>("damn!").nonEqual(failureResult("shit!"))).toBeTruthy()
     })
 })
 
