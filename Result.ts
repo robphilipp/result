@@ -16,10 +16,10 @@ export interface ToString {
  * success if, and only if, all the {@link Result}s are a success.
  *
  * When writing functions that return a {@link Result}, use the {@link successResult} function to create
- * a success {@link Result}. And use the {@link failureResult} function to create a, you guessed it, ad
+ * a success {@link Result}. And use the {@link failureResult} function to create a (you guessed it)
  * failure {@link Result}.
  *
- * The {@link Result.succeeded} and {@link Result.failed} properties of a result report whether the
+ * The {@link Result.succeeded} and {@link Result.failed} properties of a result report whether it
  * is a success or failure.
  *
  * The {@link Result.getOrUndefined} method returns a value on a success, or `undefined` on a failure.
@@ -28,30 +28,40 @@ export interface ToString {
  * throws an error, with the error value, on a failure. Although the {@link Result.value} is available,
  * I encourage you not to use it directly, but rather use the above-mentioned accessor methods.
  */
-export type Result<S, F extends ToString> = {
+export class Result<S, F extends ToString> {
     /**
      * The success value of the result. This property is meant for internal use only.
      * @see getOrUndefined
      * @see getOrDefault
      * @see getOrThrow
      */
-    readonly value?: S
+    readonly value?: S;
+
     /**
      * The failure value of the result. This property is meant for internal use only.
      * @see failureOrUndefined
      */
-    readonly error?: F
+    readonly error?: F;
 
     /**
      * Property that is `true` when the result is a success and `false` when the result is a failure
      * @see failed
      */
-    readonly succeeded: boolean
+    readonly succeeded: boolean;
+
     /**
      * Property that is `true` when the result is a failure and `false` when the result is a success
      * @see succeeded
      */
-    readonly failed: boolean
+    readonly failed: boolean;
+
+    private constructor(result: ResultType<S, F>) {
+        const { success, failure } = result;
+        this.value = success;
+        this.error = failure;
+        this.succeeded = success !== undefined && failure === undefined;
+        this.failed = failure !== undefined;
+    }
 
     /**
      * Determines the equality of this result and the specified one. The results are considered equal if:
@@ -59,8 +69,30 @@ export type Result<S, F extends ToString> = {
      * 2. They are both a failure and their errors are equal
      * @param result The result
      * @return `true` if the results are equal; `false` otherwise
+     *
+     * @example
+     * ```typescript
+     * // both results are successes and have the same value, so they are equal
+     * successResult<string, string>("yay!").equals(successResult("yay!"))
+     *
+     * // both results are successes but have they different values, so they are not equal
+     * successResult<string, string>("yay!").equals(successResult("yippy!"))
+     *
+     * // a success result can never be equal to a failure result
+     * successResult<string, string>("yay!").equals(failureResult("yay!"))
+     * failureResult<string, string>("yay!").nonEqual(successResult("yay!"))
+     * ```
      */
-    equals(result: Result<S, F>): boolean
+    equals(result: Result<S, F>): boolean {
+        if (result.succeeded !== this.succeeded) {
+            return false;
+        }
+        if (this.succeeded) {
+            return result.value === this.value;
+        }
+        return result.error === this.error;
+    }
+
     /**
      * Determines the equality of this result and the specified one. The results are considered equal if:
      * 1. They are both a success and their values are equal
@@ -68,7 +100,9 @@ export type Result<S, F extends ToString> = {
      * @param result The result
      * @return `false` if the results are equal; `true` otherwise
      */
-    nonEqual(result: Result<S, F>): boolean
+    nonEqual(result: Result<S, F>): boolean {
+        return !this.equals(result);
+    }
 
     /**
      * Applies the specified `mapper` function to the success value of this result, and returns a new
@@ -78,8 +112,20 @@ export type Result<S, F extends ToString> = {
      * @return When this result is a success, then returns a {@link Result} that wraps the result
      * of the `mapper` function. When this result is a failure, then returns this result.
      * @see flatMap
+     *
+     * @example
+     * ```typescript
+     * // messageLength is 15
+     * const messageLength = successResult("original result").map(value => value.length).getOrDefault(0)
+     * ```
      */
-    map<SP>(mapper: (value: S) => SP): Result<SP, F>
+    map<SP>(mapper: (value: S) => SP): Result<SP, F> {
+        if (this.succeeded && this.value !== undefined) {
+            return new Result<SP, F>({ success: mapper(this.value) });
+        }
+        return new Result<SP, F>({ failure: this.error });
+    }
+
     /**
      * Applies the specified `next` function to the success value of this {@link Result}, and returns the
      * result of the `next` function. When this result is a failure, then it does **not** apply the
@@ -89,8 +135,33 @@ export type Result<S, F extends ToString> = {
      * this result is a failure, then returns this result.
      * @see andThen
      * @see conditionalFlatMap
+     *
+     * @example
+     * ```typescript
+     * // result is [6, 7, 8, 9, 10]
+     * const result = successResult([1, 2, 3, 4])
+     *      .flatMap(() => successResult([6, 7, 8, 9, 10]))
+     *      .getOrDefault([])
+     *
+     * // result is [] because the first result is a failure
+     * const result = failureResult("failed to work")
+     *      .flatMap(() => successResult([6, 7, 8, 9, 10]))
+     *      .getOrDefault([])
+     *
+     * // ...and likewise, the result is [] because the first result is a failure
+     * const result = successResult([6, 7, 8, 9, 10])
+     *      .flatMap(() => failureResult("failed to work"))
+     *      .getOrDefault([])
+     *
+     * ```
      */
-    flatMap<SP>(next: (value: S) => Result<SP, F>): Result<SP, F>
+    flatMap<SP>(next: (value: S) => Result<SP, F>): Result<SP, F> {
+        if (this.succeeded && this.value !== undefined) {
+            return next(this.value);
+        }
+        return new Result<SP, F>({ failure: this.error });
+    }
+
     /**
      @deprecated Use {@link flatMap} instead.
       * Applies the specified `next` function to the success value of this {@link Result}, and returns the
@@ -101,7 +172,10 @@ export type Result<S, F extends ToString> = {
      * this result is a failure, then returns this result.
      * @see flatMap
      */
-    andThen<SP>(next: (value: S) => Result<SP, F>): Result<SP, F>
+    andThen<SP>(next: (value: S) => Result<SP, F>): Result<SP, F> {
+        return this.flatMap(next);
+    }
+
     /**
      * *NOTE* that unlike the {@link map} and {@link flatMap} functions, this conditional mapping
      * requires that the Result's value type is the same as the input value type.
@@ -112,8 +186,43 @@ export type Result<S, F extends ToString> = {
      * @param predicate A function that determines whether the provided value satisfies a condition.
      * @param mapper A function that transforms the value if the predicate is true.
      * @return A `Result` object containing either the transformed success value or the failure value.
+     *
+     * @example
+     * ```typescript
+     * // result is 50 (= 5 * 10) because the value is an odd number
+     * const result = successResult(5)
+     *      .conditionalMap(
+     *          // when the value is odd...
+     *          value => value % 2 === 1,
+     *          // ...then multiply it by 10
+     *          value => value * 10
+     *      ).getOrDefault(0)
+     *
+     * // result is 6 because it isn't an odd number
+     * const result = successResult(6)
+     *     .conditionalMap(
+     *         value => value % 2 === 1,
+     *         value => value * 10
+     *     ).getOrDefault(0)
+     *
+     * // failure result so the conditional map is skipped
+     * const result = failureResult<number, string>("oops")
+     *     .conditionalMap(
+     *         value => value % 2 === 0,
+     *         value => value * 10
+     *     ).getOrDefault(0)
+     *
+     * ```
      */
-    conditionalMap(predicate: (value: S) => boolean, mapper: (value: S) => S): Result<S, F>
+    conditionalMap(predicate: (value: S) => boolean, mapper: (value: S) => S): Result<S, F> {
+        if (this.succeeded && this.value !== undefined) {
+            return predicate(this.value) ? 
+                new Result<S, F>({ success: mapper(this.value) }) : 
+                new Result<S, F>({ success: this.value });
+        }
+        return new Result<S, F>({ failure: this.error });
+    }
+
     /**
      * *NOTE* that unlike the {@link map} and {@link flatMap} functions, this conditional mapping
      * requires that the Result's value type is the same as the input value type.
@@ -123,11 +232,42 @@ export type Result<S, F extends ToString> = {
      *
      * @param predicate A function that determines whether the provided value satisfies a condition.
      * @param next A function that transforms the value if the predicate is true.
-     * @param next The function to apply to this result's success value
      * @return When this result is a success, then returns the result of the `next` function. When
      * this result is a failure, then returns this result.
+     *
+     * @example
+     * ```typescript
+     * // result is 50 (= 5 * 10) because the value is an odd number
+     * const result = successResult(5)
+     *      .conditionalFlatMap(
+     *          // when the value is odd...
+     *          value => value % 2 === 1,
+     *          // ...then multiply it by 10
+     *          value => successResult(value * 10)
+     *      ).getOrDefault(0)
+     *
+     * // result is 6 because it isn't an odd number
+     * const result = successResult(6)
+     *     .conditionalFlatMap(
+     *         value => value % 2 === 1,
+     *         value => successResult(value * 10)
+     *     ).getOrDefault(0)
+     *
+     * // failure result so the conditional map is skipped
+     * const result = failureResult<number, string>("oops")
+     *     .conditionalFlatMap(
+     *         value => value % 2 === 0,
+     *         value => successResult(value * 10)
+     *     ).getOrDefault(0)
+     * ```
      */
-    conditionalFlatMap(predicate: (value: S) => boolean, next: (value: S) => Result<S, F>): Result<S, F>
+    conditionalFlatMap(predicate: (value: S) => boolean, next: (value: S) => Result<S, F>): Result<S, F> {
+        if (this.succeeded && this.value !== undefined) {
+            return predicate(this.value) ? next(this.value) : new Result<S, F>({ success: this.value });
+        }
+        return new Result<S, F>({ failure: this.error });
+    }
+
     /**
      * Applies the filter to the success value of this result and returns the result if it matches
      * the filter predicate, or a failure if it doesn't match the predicate. When this result is a
@@ -137,23 +277,95 @@ export type Result<S, F extends ToString> = {
      * does not match the predicate
      * @return When this result is a success, then returns the success if it matches the predicate or
      * a failure if it does not. When this result is a failure, then returns the failure.
+     *
+     * @example
+     * ```typescript
+     * // result is 5
+     * const result = successResult(5)
+     *      .filter(value => value === 5)
+     *      .getOrDefault(0)
+     *
+     * // failure result with "Result filter predicate not satisfied" error value
+     * const result = successResult<number, string>(5)
+     *      // uses default failure provider
+     *      .filter(value => value % 2 === 0)
+     *      .getOrDefault(0)
+     *
+     * // failure result with the specified "must be odd" error value
+     * const result = successResult<number, string>(5)
+     *      .filter(
+     *          // filter predicate
+     *          value => value % 2 === 0,
+     *          // failure provider
+     *          () => 'must be odd'
+     *      )
+     *      .getOrDefault(0)
+     * ```
      */
-    filter(filter: (value: S) => boolean, failureProvider?: () => F): Result<S, F>
+    filter(filter: (value: S) => boolean, failureProvider?: () => F): Result<S, F> {
+        if (this.succeeded && this.value !== undefined) {
+            return filter(this.value) ?
+                new Result<S, F>({ success: this.value }) :
+                new Result<S, F>({ failure: (failureProvider ? failureProvider() : "Result filter predicate not satisfied") as F });
+        }
+        return new Result<S, F>({ failure: this.error });
+    }
+
     /**
      * When this result is a failure, then applies the specified `mapper` function to the failure.
      * When the result is a success, then simply returns a copy of this result. This function is
      * useful when you want to update the failure information at the end of a result chain.
      * @param mapper A mapper that accepts the failure and returns a new failure
      * @return When the result is a failure, maps the failure to a new failure and returns it
+     *
+     * @example
+     * ```typescript
+     * // maps the number failure to a new failure that has a string type
+     * const result = failureResult<unknown, number>(314)
+     *     .mapFailure(() => "failed to work, and mapped to another message")
+     *
+     * // mapFailure is skipped becuase this is a success, bu the failure type
+     * // is still changed from a number to a string
+     * const result: Result<number, string> = successResult<number, number>(3)
+     *     .mapFailure(() => "not a failure but changes failure type")
+     * ```
      */
-    mapFailure<FP>(mapper: (failure: F) => FP): Result<S, FP>
+    mapFailure<FP>(mapper: (failure: F) => FP): Result<S, FP> {
+        if (this.failed && this.error !== undefined) {
+            return new Result<S, FP>({ failure: mapper(this.error) });
+        }
+        return new Result<S, FP>({ success: this.value });
+    }
+
     /**
-     * Changes the type of the result when the result is a failure. This is helpful when checking a
-     * result for failure, and then need to return a result whose success type is different.
+     * Changes the result to a failure. When result was a success, then the fallback is used. When the
+     * result was originally a failure, uses the error from the original failure. This is helpful when checking a
+     * result for failure and then needing to return a result whose success type is different.
+     * <p>
+     * This method is confusing and may not ultimately be that useful. Possible candidate for deprecation.
      * @param fallback A fallback failure in case the failure in the result is undefined
      * @return A new failure result with the new success type
+     *
+     * @example
+     * ```typescript
+     * // changes the success type from a string to a number, and the error remains the original error
+     * const result: Result<string, string> = failureResult<string, string>("i failed again")
+     * const updatedResult: Result<number, string> = result.asFailureOf<number>("The success result is now a number")
+     * expect(updatedResult.failed).toBeTruthy()
+     * expect(updatedResult.getOrUndefined()).toBeUndefined()
+     * expect(updatedResult.error).toBe("i failed again")
+     *
+     * // success result gets converted to a failure, and the error is the fallback error
+     * const result: Result<string, string> = successResult<string, string>("succeeded, yay!")
+     * const updatedResult: Result<number, string> = result.asFailureOf<number>("The success result is now a number")
+     * expect(updatedResult.failed).toBeTruthy()
+     * expect(updatedResult.getOrUndefined()).toBeUndefined()
+     * expect(updatedResult.error).toBe("The success result is now a number")
+     * ```
      */
-    asFailureOf<SP>(fallback: F): Result<SP, F>
+    asFailureOf<SP>(fallback: F): Result<SP, F> {
+        return new Result<SP, F>({ failure: this.error || fallback });
+    }
 
     /**
      * Convenience method to make it a bit easier to work with chained promises and results.
@@ -170,96 +382,324 @@ export type Result<S, F extends ToString> = {
      *
      * @return a promise to a result whose success type is that same as the type of the promise's resolved value
      */
-    liftPromise<SP>(): Promise<Result<SP, F>>
+    async liftPromise<SP>(): Promise<Result<SP, F>> {
+        // create a guard to test if the promised value is a result. specifically, the guard ensures that
+        // the promised value has a flatMap function. this is a type-predicate signature that returns true
+        // when the value has a `flatMap` function, and once asserted, then the value takes on that type.
+        const hasAndThen =
+            <S, F extends ToString>(value: any): value is Result<S, F> => 'flatMap' in value;
+
+        if (this.succeeded && this.value !== undefined) {
+            if (this.value instanceof Promise) {
+                try {
+                    const promisedValue = await (this.value as Promise<SP>);
+                    // when the promised value is already a result, then just return it
+                    if (hasAndThen<SP, F>(promisedValue)) {
+                        return promisedValue;
+                    }
+                    // otherwise, wrap it in a result
+                    return new Result<SP, F>({ success: promisedValue });
+                } catch (error) {
+                    return new Result<SP, F>({ failure: error as F });
+                }
+            }
+            return new Result<SP, F>({ success: this.value as unknown as SP });
+        }
+        return new Result<SP, F>({ failure: this.error });
+    }
 
     /**
-     * When this result is a success, calls the `handler` function on this result's value, and
+     * When this result is a success, calls the `handler` function on this result's value and
      * returns this result. When this result is a failure, then does **not** call the `handler`, but
      * rather just returns this result. Note that this method does not modify this result.
      * @param handler The callback that accepts the success value, but doesn't return anything.
      * @return This result.
      * @see onFailure
      * @see always
+     *
+     * @example
+     * ```typescript
+     * // sends "succeeded" to the consoles
+     * const result = successResult("success!")
+     *     .onSuccess(() => console.log("succeeded"))
+     *     .onFailure(() => console.log("failed"))
+     * ```
      */
-    onSuccess(handler: (value: S) => void): Result<S, F>
+    onSuccess(handler: (value: S) => void): Result<S, F> {
+        if (this.succeeded && this.value !== undefined) {
+            try {
+                handler(this.value);
+            } catch (error) {
+                return Result.errorMessageResult('Result.onSuccess handler threw an error', error as Error);
+            }
+        }
+        return this;
+    }
+
     /**
-     * When this result is a failure, calls the `handler` function on this result's error, and
+     * When this result is a failure, calls the `handler` function on this result's error and
      * returns this result. When this result is a success, then does **not** call the `handler`, but
      * rather just returns this result. Note that this method does not modify this result.
      * @param handler The callback that accepts the error, but doesn't return anything.
      * @return This result.
      * @see onSuccess
      * @see always
+     *
+     * @example
+     * ```typescript
+     * // sends "failed" to the consoles
+     * const result = failureResult("failed!")
+     *     .onSuccess(() => console.log("succeeded"))
+     *     .onFailure(() => console.log("failed"))
+     * ```
      */
-    onFailure(handler: (error: F) => void): Result<S, F>
+    onFailure(handler: (error: F) => void): Result<S, F> {
+        if (this.failed && this.error !== undefined) {
+            try {
+                handler(this.error);
+            } catch (error) {
+                return Result.errorMessageResult('Result.onFailure handler threw an error', error as Error);
+            }
+        }
+        return this;
+    }
+
     /**
      * Calls the handler regardless whether the result is a success or failure
      * @param handler The callback to perform
      * @return This result
      * @see onSuccess
      * @see onFailure
+     *
+     * @example
+     * ```typescript
+     * let message = ""
+     * const failure = failureResult("always tells it").always(() => message = "oh no")
+     * expect(failure.error).toEqual("always tells it")
+     * expect(message).toEqual("oh no")
+     *
+     * const success = successResult("never tells it").always(() => message = "oh yeah")
+     * expect(success.getOrThrow()).toEqual("never tells it")
+     * expect(message).toEqual("oh yeah")
+     * ```
      */
-    always(handler: () => void): Result<S, F>
+    always(handler: () => void): Result<S, F> {
+        try {
+            handler();
+        } catch (error) {
+            return Result.errorMessageResult('Result.onAlways handler threw an error', error as Error);
+        }
+        return this;
+    }
 
     /**
-     * @return When this result is a success, then returns the value. Otherwise returns `undefined`.
+     * @return When this result is a success, then returns the value. Otherwise, returns `undefined`.
      * @see getOrDefault
      * @see getOrThrow
      * @see failureOrUndefined
+     *
+     * @example
+     * ```typescript
+     * expect(failureResult("i failed again").getOrUndefined()).toBeUndefined()
+     * expect(successResult("yay! i succeeded").getOrUndefined()).toEqual("yay! i succeeded")
+     * ```
      */
-    getOrUndefined(): S | undefined
+    getOrUndefined(): S | undefined {
+        return this.value;
+    }
+
     /**
      * @return When this result is a success, then returns the value. Otherwise, returns the specified
      * default value.
      * @see getOrUndefined
      * @see getOrThrow
      * @see failureOrUndefined
+     *
+     * @example
+     * ```typescript
+     * expect(successResult("yay! i succeeded").getOrElse("boo")).toEqual("yay! i succeeded")
+     * expect(failureResult("i failed again").getOrElse("boo")).toEqual("boo")
+     * ```
      */
-    getOrDefault(value: S): S
+    getOrElse(value: S): S {
+        return (this.succeeded && this.value !== undefined) ? this.value : value;
+    }
+
+    /**
+     * @return When this result is a success, then returns the value. Otherwise, returns the specified
+     * default value.
+     * @see getOrUndefined
+     * @see getOrThrow
+     * @see failureOrUndefined
+     *
+     * @deprecated use {@link Result.getOrElse)
+     */
+    getOrDefault(value: S): S {
+        return this.getOrElse(value);
+    }
+
     /**
      * Provides a value by invoking a supplier function if the current context
      * or associated value does not already exist or is undefined.
      * @param supplier - A function that supplies a value to return.
      * @returns The value either provided by the supplier function or already
      * existing in the associated context.
+     * @see getOrElse
+     *
+     * @example
+     * ```typescript
+     * expect(successResult("yay! i succeeded").getOr(() => "boo")).toEqual("yay! i succeeded")
+     * expect(failureResult("i failed again").getOr(() =>"boo")).toEqual("boo")
+     * ```
      */
-    getOr(supplier: () => S): S
+    getOr(supplier: () => S): S {
+        return (this.succeeded && this.value !== undefined) ? this.value : supplier();
+    }
+
     /**
      * @return When this result is a success, then returns the value. Otherwise, throws an error that
      * contains the error in this result.
      * @see getOrUndefined
      * @see getOrDefault
      * @see failureOrUndefined
+     *
+     * @example
+     * ```typescript
+     * expect(successResult("yay! i succeeded").getOrThrow()).toEqual("yay! i succeeded")
+     * expect(() => failureResult("i failed again").getOrThrow()).toThrow()
+     * ```
      */
-    getOrThrow(): S
+    getOrThrow(): S {
+        if (this.succeeded && this.value !== undefined) {
+            return this.value;
+        }
+        throw Error(this.error?.toString());
+    }
 
     /**
      * @return When this result is a failure, then returns the error. Otherwise, returns `undefined`.
      * @see getOrUndefined
      * @see getOrDefault
      * @see getOrThrow
+     *
+     * @example
+     * ```typescript
+     * expect(successResult("yay! i succeeded").failureOrUndefined()).toBeUndefined()
+     * expect(failureResult("i failed again").failureOrUndefined()).toEqual("i failed again")
+     * ```
      */
-    failureOrUndefined(): F | undefined
+    failureOrUndefined(): F | undefined {
+        return this.error;
+    }
+
+    /**
+     * Creates an error message result used when a function's handler throws an exception when
+     * called.
+     * @param message The error message
+     * @param error The error thrown by the handler
+     * @return A failure result with the error message describing why the handler failed
+     */
+    private static errorMessageResult<S, F extends ToString>(message: string, error: Error): Result<S, F> {
+        return new Result<S, F>({
+            failure: {
+                toString: () => `${message}; error: ${error.message}`
+            } as F
+        });
+    }
+
+    /**
+     * Factory method for creating a successful {@link Result}.
+     * @param success The value of the successful operation.
+     * @return A {@link Result} that holds the value of the successful operation and an undefined error.
+     *
+     * @example
+     * ```typescript
+     * const result = Result.success<Array<number>, string>([1, 2, 3, 4])
+     * const result = Result.success([1, 2, 3, 4])
+     * ```
+     */
+    static success<S, F extends ToString>(success: S): Result<S, F> {
+        return new Result<S, F>({ success });
+    }
+
+    /**
+     * Factory method for creating a failure {@link Result}.
+     * @param failure The error reported from the operation.
+     * @return A {@link Result} that holds the failure and an undefined success
+     *
+     * @example
+     * ```typescript
+     * const result = Result.failure<Array<number>, string>("this failed")
+     * ```
+     */
+    static failure<S, F extends ToString>(failure: F): Result<S, F> {
+        return new Result<S, F>({ failure });
+    }
+
+    /**
+     * Convenience method for collapsing (flatMap) an array of {@link Result}s into a single {@link Result}
+     * that holds an array of values. All results in the specified array of results must be successful in order
+     * for the returned result to be a success.
+     * @param results An array of results
+     * @return A {@link Result} holding an array of successful values, or a failure if any of the results in
+     * the array are failures.
+     * @see resultFromAll
+     *
+     * @example
+     * ```typescript
+     * const result = [1, 2, 3, 4, 5].map(elem => successResult<number, string>(elem))
+     * expect(resultFromAll(result).getOrThrow()).toEqual(successResult([1, 2, 3, 4, 5]).getOrThrow())
+     * ```
+     */
+    static fromAll<T, F extends ToString>(results: Array<Result<T, F>>): Result<Array<T>, string> {
+        const successes = results.filter(result => result.succeeded).map(result => result.getOrThrow());
+        if (successes.length !== results.length) {
+            return Result.failure<Array<T>, string>(`All results were not successful; number_failed: ${results.length - successes.length}`);
+        }
+        return Result.success<Array<T>, string>(successes);
+    }
+
+    /**
+     * Convenience method for collapsing (flatMap) an array of {@link Result}s into a single {@link Result}
+     * that holds an array of successful values. Any failure results will be discarded. If all the results
+     * are failures, then returns a successful result holding an empty array.
+     * @param results An array of results
+     * @return A {@link Result} holding an array of successful values. Any failures will be discarded.
+     *
+     * @example
+     * ```typescript
+     * // create an array of Result objects -- successes and failures
+     * const result: Array<Result<number, string>> =
+     *      [...[1, 2, 3, 4, 5].map(x => successResult<number, string>(x)), failureResult('hmm')]
+     * expect(resultFromAny(result).succeeded).toBeTruthy()
+     * expect(resultFromAny(result).getOrThrow()).toEqual(successResult([1, 2, 3, 4, 5]).getOrThrow())
+     * ```
+     */
+    static fromAny<T, F extends ToString>(results: Array<Result<T, F>>): Result<Array<T>, string> {
+        return Result.success<Array<T>, string>(
+            results.filter(result => result.succeeded).map(result => result.getOrThrow())
+        );
+    }
 }
+
+/**
+ * Type definition for the optional success and failure
+ */
+type ResultType<S, F extends ToString> = { success?: S, failure?: F }
 
 /**
  * Factory function for a successful {@link Result}.
  * @param success The value of the successful operation.
  * @return A {@link Result} that holds the value of the successful operation and an undefined error.
  */
-export const successResult = <S, F extends ToString>(success: S): Result<S, F> => resultFrom({success} as ResultType<S, F>)
+export const successResult = <S, F extends ToString>(success: S): Result<S, F> => Result.success(success);
 
 /**
  * Factory function for a failure {@link Result}.
  * @param failure The error reported from the operation.
  * @return A {@link Result} that holds the failure and an undefined success
  */
-export const failureResult = <S, F extends ToString>(failure: F): Result<S, F> => resultFrom({failure} as ResultType<S, F>)
-
-/**
- * Type definition for the optional success and failure
- */
-type ResultType<S, F extends ToString> = { success?: S, failure?: F }
+export const failureResult = <S, F extends ToString>(failure: F): Result<S, F> => Result.failure(failure);
 
 /**
  * Convenience function for collapsing (flatMap) an array of {@link Result}s into a single {@link Result}
@@ -268,13 +708,16 @@ type ResultType<S, F extends ToString> = { success?: S, failure?: F }
  * @param results An array of results
  * @return A {@link Result} holding an array of successful values, or a failure if any of the results in
  * the array are failures.
+ * @see Result.fromAll
+ *
+ * @example
+ * ```typescript
+ * const result = [1, 2, 3, 4, 5].map(elem => successResult<number, string>(elem))
+ * expect(resultFromAll(result).getOrThrow()).toEqual(successResult([1, 2, 3, 4, 5]).getOrThrow())
+ * ```
  */
 export function resultFromAll<T, F extends ToString>(results: Array<Result<T, F>>): Result<Array<T>, string> {
-    const successes = results.filter(result => result.succeeded).map(result => result.getOrThrow())
-    if (successes.length !== results.length) {
-        return failureResult(`All results were not successful; number_failed: ${results.length - successes.length}`)
-    }
-    return successResult(successes)
+    return Result.fromAll(results);
 }
 
 /**
@@ -283,334 +726,22 @@ export function resultFromAll<T, F extends ToString>(results: Array<Result<T, F>
  * are failures, then returns a successful result holding an empty array.
  * @param results An array of results
  * @return A {@link Result} holding an array of successful values. Any failures will be discarded.
+ *
+ * @example
+ * ```typescript
+ * // create an array of Result objects -- successes and failures
+ * const result: Array<Result<number, string>> =
+ *      [...[1, 2, 3, 4, 5].map(x => successResult<number, string>(x)), failureResult('hmm')]
+ * expect(resultFromAny(result).succeeded).toBeTruthy()
+ * expect(resultFromAny(result).getOrThrow()).toEqual(successResult([1, 2, 3, 4, 5]).getOrThrow())
+ * ```
  */
 export function resultFromAny<T, F extends ToString>(results: Array<Result<T, F>>): Result<Array<T>, string> {
-    return successResult(results.filter(result => result.succeeded).map(result => result.getOrThrow()))
+    return Result.fromAny(results);
 }
 
 /**
- * A factory method for creating results.
- * @param result The result of an operation
- * @return The {@link Result} of an operation.
- * @see successResult
- * @see failureResult
- */
-function resultFrom<S, F extends ToString>(result: ResultType<S, F>): Result<S, F> {
-    const {success, failure} = result
-    return {
-        value: success,
-        error: failure,
-
-        succeeded: success !== undefined && failure === undefined,
-        failed: failure !== undefined,
-
-        equals: (result: Result<S, F>) => equalsResult(result, success, failure),
-        nonEqual: (result: Result<S, F>) => !equalsResult(result, success, failure),
-
-        map: <SP>(mapper: (value: S) => SP) => mapValue(mapper, success, failure),
-        andThen: <SP>(next: (value: S) => Result<SP, F>) => flatMapValue(next, success, failure),
-        flatMap: <SP>(next: (value: S) => Result<SP, F>) => flatMapValue(next, success, failure),
-        conditionalMap: (predicate: (value: S) => boolean, mapper: (value: S) => S) => conditionalMapValue(predicate, mapper, success, failure),
-        conditionalFlatMap: (predicate: (value: S) => boolean, next: (value: S) => Result<S, F>) => conditionalFlatMapValue(predicate, next, success, failure),
-        filter: (filter: (value: S) => boolean, failureProvider?: () => F) => filterValue(filter, success, failure, failureProvider),
-        mapFailure: <FP>(mapper: (failure: F) => FP) => mapFailure(mapper, success, failure),
-        asFailureOf: <SP>(fallback: F) => asFailure<SP, F>(failure || fallback),
-
-        liftPromise: () => liftPromiseFromOrCreate(success, failure),
-
-        onSuccess: (handler: (value: S) => void) => onSuccess(handler, success, failure),
-        onFailure: (handler: (error: F) => void) => onFailure(handler, success, failure),
-        always: function (this: Result<S, F>, handler: () => void) {
-            return onAlways(this, handler)
-        },
-
-        getOrUndefined: () => success,
-        getOrDefault: (value: S) => (success !== undefined && failure === undefined) ? success : value,
-        getOr: (supplier: () => S) => (success !== undefined && failure === undefined) ? success : supplier(),
-        getOrThrow: () => getOrThrow(success, failure),
-
-        failureOrUndefined: () => failure
-    }
-}
-
-/**
- * Determines the equality of two results. Two results are considered equal if:
- * 1. They are both a success and their values are equal
- * 2. They are both a failure and their errors are equal
- * @param result The result
- * @param [success=undefined] The success of the second result
- * @param [failure=undefined] The failure of the second result
- * @return `true` if the results are equal; `false` otherwise
- */
-function equalsResult<S, F extends ToString>(result: Result<S, F>, success?: S, failure?: F): boolean {
-    if (result.succeeded !== (success !== undefined && failure === undefined)) return false
-    if (result.succeeded) return result.value === success
-    return result.error === failure
-}
-
-/**
- * When the specified `success` is defined, applies the specified `mapper` function to the success
- * value and wraps the value of the function call in a {@link Result}. When the specified `success`
- * is not defined, then wraps the failure in a {@link Result} and returns it.
- * @param mapper The mapper function that accepts the success value and returns a new value.
- * @param [success=undefined] The success value (which may be undefined)
- * @param [failure=undefined] The failure (which may be undefined)
- * @return A {@link Result} that holds the mapped success value (when `success` is defined) or the failure
- * when `success` is not defined).
- * @see flatMapValue
- */
-function mapValue<S, SP, F extends ToString>(mapper: (value: S) => SP, success?: S, failure?: F): Result<SP, F> {
-    return (success !== undefined ?
-            resultFrom({success: mapper(success)}) :
-            resultFrom({failure})
-    ) as Result<SP, F>
-}
-
-/**
- * When the specified `success` is defined, then applies the specified `next` function to the success
- * value and returns the result from the `next` function. When the specified `success` is not defined,
- * then wraps the failure into a result and returns it
- * @param next A function that accepts a next value and returns a {@link Result}
- * @param [success=undefined] The success value (which may be undefined)
- * @param [failure=undefined] The failure (which may be undefined)
- * @return When the specified `success` is defined, then returns the {@link Result} generated from the
- * specified `next` function. Otherwise, returns the failure wrapped in a {@link Result}.
- * @see mapValue
- */
-function flatMapValue<S, SP, F extends ToString>(
-    next: (value: S) => Result<SP, F>,
-    success?: S,
-    failure?: F
-): Result<SP, F> {
-    return (success !== undefined ?
-            next(success) :
-            resultFrom({failure})
-    ) as Result<SP, F>
-}
-
-/**
- * Applies a mapping function to a value based on a predicate and returns a result.
- *
- * @param predicate A function that determines whether the provided value satisfies a condition.
- * @param mapper A function that transforms the value if the predicate is true.
- * @param [success=undefined] The success value (which may be undefined)
- * @param [failure=undefined] The failure (which may be undefined)
- * @return A `Result` object containing either the transformed success value or the failure value.
- */
-function conditionalMapValue<S, F extends ToString>(
-    predicate: (value: S) => boolean,
-    mapper: (value: S) => S,
-    success?: S,
-    failure?: F
-): Result<S, F> {
-    if (success === undefined) {
-        return resultFrom({failure})
-    }
-    return predicate(success) ? resultFrom({success: mapper(success)}) : successResult(success)
-}
-
-/**
- * Applies a mapping function to a value based on a predicate and returns a result.
- *
- * @param predicate A function that determines whether the provided value satisfies a condition.
- * @param next A function that accepts a next value and returns a {@link Result}
- * @param [success=undefined] The success value (which may be undefined)
- * @param [failure=undefined] The failure (which may be undefined)
- * @return A `Result` object containing either the transformed success value or the failure value.
- */
-function conditionalFlatMapValue<S, F extends ToString>(
-    predicate: (value: S) => boolean,
-    next: (value: S) => Result<S, F>,
-    success?: S,
-    failure?: F
-): Result<S, F> {
-    if (success === undefined) {
-        return resultFrom({failure})
-    }
-    return predicate(success) ? next(success) : successResult(success)
-}
-
-
-
-/**
- * When the specified `success` is defined, then applies the specified filter predicate to the value. When the
- * value meets the predicate, then returns the success wrapped in a result. Otherwise, returns a failure result.
- * @param filter The filter predicate
- * @param success The success value
- * @param failure The failure value
- * @param [failureProvider] Optional function that provides the failure when the success result
- * does not match the predicate
- * @return A success {@link Result} when `success` is defined and the value meets the predicate; a failure
- * otherwise
- */
-function filterValue<S, F extends ToString>(
-    filter: (value: S) => boolean,
-    success?: S,
-    failure?: F,
-    failureProvider?: () => F
-): Result<S, F> {
-    if (success !== undefined) {
-        return filter(success) ?
-            resultFrom({success}) :
-            // failureResult({toString: () => "Predicate not satisfied"} as F)
-            failureResult(failureProvider ? failureProvider() : {toString: () => "Predicate not satisfied"} as F)
-    }
-    return resultFrom({failure})
-}
-
-/**
- * When the specified `failure` is defined, then applies the specified `mapper` function to the failure
- * value and wraps the failure in a failure {@link Result}. When the specified `failure` is not defined
- * then wraps the `success` in a success {@link Result} and returns it.
- * @param mapper The mapper function that accepts the failure value and returns a new failure
- * @param [success=undefined] The success value (which may be undefined)
- * @param [failure=undefined] The failure (which may be undefined)
- * @return A {@link Result} that holds the mapped failure value (which `failure` is defined) or the
- * success when `failure` is not defined
- */
-function mapFailure<S, F extends ToString, FP extends ToString>(
-    mapper: (failure: F) => FP,
-    success?: S,
-    failure?: F
-): Result<S, FP> {
-    return (failure !== undefined ?
-            failureResult(mapper(failure)) :
-            resultFrom({success})
-    ) as Result<S, FP>
-}
-
-/**
- * Changes the type of the result when the result is a failure. This is helpful when checking a
- * result for failure, and then need to return a result whose success type is different.
- * @param failure A fallback failure in case the failure in the result is undefined
- * @return A new failure result with the new success type
- */
-function asFailure<SP, F extends ToString>(failure: F): Result<SP, F> {
-    return failureResult<SP, F>(failure)
-}
-
-/**
- * Attempts to lift the Promise out of the result and re-wraps the result as a promise. In other words,
- * attempts to convert a `Result<Promise<S>, F>` into a `Promise<Result<SP, F>>` where the type `SP`
- * equals to the type `S` of the resolved promise.
- *
- * And, as an extra bonus, but only if you order in the next 10 minutes, it'll also convert
- * `Result<Promise<Result<S, F>, F>` into a `Promise<Result<SP, F>>`.
- *
- * @param success The success, which must be a `Promise<S>`. When the this parameter is not a `Promise<S>`,
- * then wraps the result in a Promise.
- * @param failure The failure
- * @return a promise to a result whose success type is that same as the type of the promise's resolved value
- */
-async function liftPromiseFromOrCreate<S, SP, F extends ToString>(success?: S, failure?: F): Promise<Result<SP, F>> {
-    // create a guard to test if the promised value is a result (specifically has an andThen function
-    // (this is a type-predicate signature that returns true when value has an `andThen` function, and once
-    // asserted, then the value takes on that type)
-    const hasAndThen = <S, F extends ToString>(value: any): value is Result<S, F> => 'andThen' in value
-
-    if (success !== undefined) {
-        if (success instanceof Promise) {
-            const promisedValue = await (success as Promise<SP>)
-            // when the promised value is already a result, then just return it
-            if (hasAndThen<SP, F>(promisedValue)) {
-                return promisedValue
-            }
-            // otherwise, wrap it in a result
-            return successResult<SP, F>(promisedValue)
-        }
-        return successResult<SP, F>(success as unknown as SP)
-    }
-    return resultFrom({failure})
-}
-
-/**
- * When the specified `success` is defined, then calls the specified `handler` function, passing it
- * the success value. In all cases, returns a new {@link Result} that wraps the specified `success`
- * and `failure`.
- * @param handler The handler that gets called when the specified `success` is defined. The function
- * must access the `success`.
- * @param [success=undefined] The success value (which may be undefined)
- * @param [failure=undefined] The failure (which may be undefined)
- * @return A new {@link Result} that wraps the specified `success` and `failure` values.
- * @see onFailure
- */
-function onSuccess<S, F extends ToString>(handler: (value: S) => void, success?: S, failure?: F): Result<S, F> {
-    if (success !== undefined) {
-        try {
-            handler(success)
-        } catch (error) {
-            return errorMessageResult('Result.onSuccess handler threw an error', error as Error)
-        }
-    }
-    return resultFrom({success, failure})
-}
-
-/**
- * When the specified `success` is **not** defined, then calls the specified `handler` function, passing
- * it the `failure`. In all cases, returns a new {@link Result} that wraps the specified `success`
- * and `failure`.
- * @param handler The handler that gets called when the specified `success` is **not** defined. The
- * function must accept the `failure`.
- * @param success The success value (which may be undefined)
- * @param failure The failure (which may be undefined)
- * @return A new {@link Result} that wraps the specified `success` and `failure` values.
- * @see onSuccess
- */
-function onFailure<S, F extends ToString>(handler: (error: F) => void, success?: S, failure?: F): Result<S, F> {
-    if (failure !== undefined) {
-        try {
-            handler(failure)
-        } catch (error) {
-            return errorMessageResult('Result.onFailure handler threw an error', error as Error)
-        }
-    }
-    return resultFrom({success, failure})
-}
-
-/**
- * Calls the handler regardless of whether the specified result is a `success` or `failure`, and returns
- * the specified result, unchanged. When the handler throws an exception, then returns a failure.
- * @param result The result
- * @param handler The handler
- * @return The specified result
- */
-function onAlways<S, F extends ToString>(result: Result<S, F>, handler: () => void): Result<S, F> {
-    try {
-        handler()
-    } catch (error) {
-        return errorMessageResult('Result.onAlways handler threw an error', error as Error)
-    }
-    return result
-}
-
-/**
- * Creates an error message result that is used when a function's handler throws an exception when
- * called.
- * @param message The error message
- * @param error The error thrown by the handler
- * @return A failure result with the error message describing why the handler failed
- */
-function errorMessageResult<S, F extends ToString>(message: string, error: Error): Result<S, F> {
-    return failureResult({
-        toString: () => `${message}; error: ${error.message}`
-    } as F)
-}
-
-/**
- * @param [success=undefined] The success value (which may be undefined)
- * @param [failure=undefined] The failure (which may be undefined)
- * @return When the specified `success` is defined and the specified `failure` is **not** defined, then returns
- * the `success` value. Otherwise throws an error with the specified `failure`.
- */
-function getOrThrow<S, F extends ToString>(success?: S, failure?: F): S {
-    if (success !== undefined && failure === undefined) {
-        return success
-    }
-    throw Error(failure?.toString())
-}
-
-/**
- * For each result in the `resultList` applies the `handler` function, and then reduces each of those
+ * For each result in the `resultList` applies the `handler` function and then reduces each of those
  * results into a single result. The single result is a "success" iff all the results spewed from the
  * `handler` are a "success". Conversely, if any of those results are a "failure", the single result is
  * also a failure.
@@ -627,6 +758,47 @@ function getOrThrow<S, F extends ToString>(success?: S, failure?: F): S {
  * @return A single {@link Result} which is either a success or failure. When the result is a success,
  * then the {@link Result} holds an array of success values. When the result is a failure, then the
  * {@link Result} holds an array of the failures.
+ *
+ * @example
+ * ```typescript
+ * // given an array of results
+ * const results: Array<Result<string, string>> = [
+ *      successResult("an apple"),
+ *      successResult("busy bumble bees"),
+ *      successResult("changing clothing causes constipation"),
+ *      successResult("doorknobs doorbells dinner ding dong")
+ * ]
+ * // for each result, count the number of words
+ * const combined = forEachResult<string, string, number, string>(
+ *      results,
+ *      result => result.map(value => value.split(" ").length)
+ * )
+ * expect(combined.succeeded).toBeTruthy()
+ * expect(combined.failed).toBeFalsy()
+ * expect(combined.getOrUndefined()).toBeDefined()
+ * expect(combined.getOrUndefined()).toEqual([2, 3, 4, 5])
+ * expect(combined.getOrElse([]).length).toBe(4)
+ *
+ * // if there are failures, then the whole thing fails
+ * const results: Array<Result<string, string>> = [
+ *      successResult("an apple"),
+ *      successResult("busy bumble bees"),
+ *                 successResult("changing clothing causes constipation"),
+ *                 failureResult("doorknobs doorbells dinner ding dong"),
+ *                 failureResult("oops only one operation ordinarily opens")
+ *             ]
+ *             const combined = forEachResult<string, string, number, string>(
+ *                 results,
+ *                 result => result.map(value => value.split(" ").length)
+ *             )
+ *             expect(combined.failed).toBeTruthy()
+ *             expect(combined.succeeded).toBeFalsy()
+ *             expect(combined.getOrUndefined()).toBeUndefined()
+ *             expect(combined.error).toEqual([
+ *                 "doorknobs doorbells dinner ding dong",
+ *                 "oops only one operation ordinarily opens"
+ *             ])
+ * ```
  */
 export function forEachResult<SI, FI extends ToString, SO, FO extends ToString>(
     resultList: Array<Result<SI, FI>>,
@@ -642,7 +814,7 @@ export function forEachResult<SI, FI extends ToString, SO, FO extends ToString>(
                 failed.push(result.error)
             }
         }
-        return failureResult<Array<SO>, Array<FO>>(failed)
+        return Result.failure<Array<SO>, Array<FO>>(failed)
     }
     const succeeded: Array<SO> = []
     for (let i = 0; i < results.length; ++i) {
@@ -651,16 +823,17 @@ export function forEachResult<SI, FI extends ToString, SO, FO extends ToString>(
             succeeded.push(result.value)
         }
     }
-    return successResult<Array<SO>, Array<FO>>(succeeded)
+    return Result.success<Array<SO>, Array<FO>>(succeeded)
 }
 
 /**
- * Applies the handler to the specified set of elements, lifting the result outside of the array.
+ * Applies the handler to the specified set of elements, lifting the result outside the array.
  * Given an array of numbers to which we apply a {@link Result} returning operation, the overall result is a
  * success of all the operations are successes. When any of the operations returns a failure, then
  * the failures are collected, and the overall result is a failure.
  *
  * @example
+ * ```typescript
  * const result = forEachElement(
  *      [1, 2, 3, 4, 5],
  *      elem => successResult(2 * elem)
@@ -668,8 +841,10 @@ export function forEachResult<SI, FI extends ToString, SO, FO extends ToString>(
  *  expect(result.succeeded).toBeTruthy()
  *  expect(result.getOrDefault([]).length).toBe(5)
  *  expect(result.getOrDefault([])).toEqual([2, 4, 6, 8, 10])
- *         
+ * ```
+ *
  * @example
+ * ```typescript
  * const result = forEachElement(
  *      [1, 2, 3, 4, 5],
  *      elem => elem === 3 ?
@@ -678,6 +853,7 @@ export function forEachResult<SI, FI extends ToString, SO, FO extends ToString>(
  *  )
  *  expect(result.failed).toBeTruthy()
  *  expect(result.error).toEqual(["three sucks"])
+ *  ```
  *         
  * @param elems The elements on which to perform a {@link Result} returning operation
  * @param handler The operation that accepts an element and returns a {@link Result}
@@ -697,7 +873,7 @@ export function forEachElement<V, S, F extends ToString>(
                 failed.push(result.error)
             }
         }
-        return failureResult<Array<S>, Array<F>>(failed)
+        return Result.failure<Array<S>, Array<F>>(failed)
     }
     const succeeded: Array<S> = []
     for (let i = 0; i < results.length; ++i) {
@@ -706,7 +882,7 @@ export function forEachElement<V, S, F extends ToString>(
             succeeded.push(result.value)
         }
     }
-    return successResult(succeeded)
+    return Result.success(succeeded)
 }
 
 /**
@@ -715,6 +891,7 @@ export function forEachElement<V, S, F extends ToString>(
  * an array of successes, or an array of failures.
  *
  * @example
+ * ```typescript
  * const results = await forEachPromise([1,2,3,4,5], elem => new Promise<Result<number, string>>((resolve, reject) => {
  *     setTimeout(() => {
  *         resolve(successResult(elem * 2))
@@ -722,8 +899,10 @@ export function forEachElement<V, S, F extends ToString>(
  * }))
  *
  * expect(results.getOrThrow()).toEqual([2,4,6,8,10])
+ * ```
  *
  * @example
+ * ```typescript
  * const results = await forEachPromise([1,2,3,4,5], elem => new Promise<Result<number, string>>((resolve, reject) => {
  *     setTimeout(() => {
  *         if (elem % 2 === 0) {
@@ -736,6 +915,7 @@ export function forEachElement<V, S, F extends ToString>(
  *
  * expect(results.failed).toBeTruthy()
  * expect(results.error).toEqual(["number must be even", "number must be even", "number must be even"])
+ * ```
  *
  * @param elems The elements to which to apply the specified handler function
  * @param handler The function that returns a {@link Result} for a specified value
@@ -755,7 +935,7 @@ export async function forEachPromise<V, S, F>(
             // @ts-ignore
             .map(settled => settled.reason)
         if (rejected.length > 0) {
-            return failureResult(rejected.map(reject => reject))
+            return Result.failure(rejected.map(reject => reject))
         }
 
         // no failures so report the success results
@@ -767,7 +947,7 @@ export async function forEachPromise<V, S, F>(
     } catch (reason) {
         // something went terribly wrong
         console.error("Result::forEachPromise failed to settle all results", reason)
-        return failureResult<S[], F[]>([reason as F])
+        return Result.failure<S[], F[]>([reason as F])
     }
 }
 
@@ -805,7 +985,7 @@ export function reduceToResult<V, S, F extends ToString>(
     );
 
     if (reduced === undefined || failures.length > 0) {
-        return failureResult<S, Array<F>>(failures)
+        return Result.failure<S, Array<F>>(failures)
     }
-    return successResult(reduced);
+    return Result.success(reduced);
 }
