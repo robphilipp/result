@@ -1,6 +1,6 @@
 {
   "name": "result-fn",
-  "version": "0.2.1-snapshot",
+  "version": "0.2.1",
   "description": "Result",
   "author": "Rob Philipp",
   "homepage": "https://github.com/robphilipp/result",
