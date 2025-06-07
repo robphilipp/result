@@ -300,9 +300,6 @@ export class Result<S, F extends ToString> {
      *          () => 'must be odd'
      *      )
      *      .getOrDefault(0)
-     *
-     * // result is a failure
-     *
      * ```
      */
     filter(filter: (value: S) => boolean, failureProvider?: () => F): Result<S, F> {
@@ -320,6 +317,18 @@ export class Result<S, F extends ToString> {
      * useful when you want to update the failure information at the end of a result chain.
      * @param mapper A mapper that accepts the failure and returns a new failure
      * @return When the result is a failure, maps the failure to a new failure and returns it
+     *
+     * @example
+     * ```typescript
+     * // maps the number failure to a new failure that has a string type
+     * const result = failureResult<unknown, number>(314)
+     *     .mapFailure(() => "failed to work, and mapped to another message")
+     *
+     * // mapFailure is skipped becuase this is a success, bu the failure type
+     * // is still changed from a number to a string
+     * const result: Result<number, string> = successResult<number, number>(3)
+     *     .mapFailure(() => "not a failure but changes failure type")
+     * ```
      */
     mapFailure<FP>(mapper: (failure: F) => FP): Result<S, FP> {
         if (this.failed && this.error !== undefined) {
@@ -329,10 +338,30 @@ export class Result<S, F extends ToString> {
     }
 
     /**
-     * Changes the type of the result when the result is a failure. This is helpful when checking a
+     * Changes the result to a failure. When result was a success, then the fallback is used. When the
+     * result was originally a failure, uses the error from the original failure. This is helpful when checking a
      * result for failure and then needing to return a result whose success type is different.
+     * <p>
+     * This method is confusing and may not ultimately be that useful. Possible candidate for deprecation.
      * @param fallback A fallback failure in case the failure in the result is undefined
      * @return A new failure result with the new success type
+     *
+     * @example
+     * ```typescript
+     * // changes the success type from a string to a number, and the error remains the original error
+     * const result: Result<string, string> = failureResult<string, string>("i failed again")
+     * const updatedResult: Result<number, string> = result.asFailureOf<number>("The success result is now a number")
+     * expect(updatedResult.failed).toBeTruthy()
+     * expect(updatedResult.getOrUndefined()).toBeUndefined()
+     * expect(updatedResult.error).toBe("i failed again")
+     *
+     * // success result gets converted to a failure, and the error is the fallback error
+     * const result: Result<string, string> = successResult<string, string>("succeeded, yay!")
+     * const updatedResult: Result<number, string> = result.asFailureOf<number>("The success result is now a number")
+     * expect(updatedResult.failed).toBeTruthy()
+     * expect(updatedResult.getOrUndefined()).toBeUndefined()
+     * expect(updatedResult.error).toBe("The success result is now a number")
+     * ```
      */
     asFailureOf<SP>(fallback: F): Result<SP, F> {
         return new Result<SP, F>({ failure: this.error || fallback });
@@ -387,6 +416,14 @@ export class Result<S, F extends ToString> {
      * @return This result.
      * @see onFailure
      * @see always
+     *
+     * @example
+     * ```typescript
+     * // sends "succeeded" to the consoles
+     * const result = successResult("success!")
+     *     .onSuccess(() => console.log("succeeded"))
+     *     .onFailure(() => console.log("failed"))
+     * ```
      */
     onSuccess(handler: (value: S) => void): Result<S, F> {
         if (this.succeeded && this.value !== undefined) {
@@ -407,6 +444,14 @@ export class Result<S, F extends ToString> {
      * @return This result.
      * @see onSuccess
      * @see always
+     *
+     * @example
+     * ```typescript
+     * // sends "failed" to the consoles
+     * const result = failureResult("failed!")
+     *     .onSuccess(() => console.log("succeeded"))
+     *     .onFailure(() => console.log("failed"))
+     * ```
      */
     onFailure(handler: (error: F) => void): Result<S, F> {
         if (this.failed && this.error !== undefined) {
@@ -425,6 +470,18 @@ export class Result<S, F extends ToString> {
      * @return This result
      * @see onSuccess
      * @see onFailure
+     *
+     * @example
+     * ```typescript
+     * let message = ""
+     * const failure = failureResult("always tells it").always(() => message = "oh no")
+     * expect(failure.error).toEqual("always tells it")
+     * expect(message).toEqual("oh no")
+     *
+     * const success = successResult("never tells it").always(() => message = "oh yeah")
+     * expect(success.getOrThrow()).toEqual("never tells it")
+     * expect(message).toEqual("oh yeah")
+     * ```
      */
     always(handler: () => void): Result<S, F> {
         try {
@@ -440,6 +497,12 @@ export class Result<S, F extends ToString> {
      * @see getOrDefault
      * @see getOrThrow
      * @see failureOrUndefined
+     *
+     * @example
+     * ```typescript
+     * expect(failureResult("i failed again").getOrUndefined()).toBeUndefined()
+     * expect(successResult("yay! i succeeded").getOrUndefined()).toEqual("yay! i succeeded")
+     * ```
      */
     getOrUndefined(): S | undefined {
         return this.value;
@@ -451,9 +514,28 @@ export class Result<S, F extends ToString> {
      * @see getOrUndefined
      * @see getOrThrow
      * @see failureOrUndefined
+     *
+     * @example
+     * ```typescript
+     * expect(successResult("yay! i succeeded").getOrElse("boo")).toEqual("yay! i succeeded")
+     * expect(failureResult("i failed again").getOrElse("boo")).toEqual("boo")
+     * ```
+     */
+    getOrElse(value: S): S {
+        return (this.succeeded && this.value !== undefined) ? this.value : value;
+    }
+
+    /**
+     * @return When this result is a success, then returns the value. Otherwise, returns the specified
+     * default value.
+     * @see getOrUndefined
+     * @see getOrThrow
+     * @see failureOrUndefined
+     *
+     * @deprecated use {@link Result.getOrElse)
      */
     getOrDefault(value: S): S {
-        return (this.succeeded && this.value !== undefined) ? this.value : value;
+        return this.getOrElse(value);
     }
 
     /**
@@ -462,6 +544,13 @@ export class Result<S, F extends ToString> {
      * @param supplier - A function that supplies a value to return.
      * @returns The value either provided by the supplier function or already
      * existing in the associated context.
+     * @see getOrElse
+     *
+     * @example
+     * ```typescript
+     * expect(successResult("yay! i succeeded").getOr(() => "boo")).toEqual("yay! i succeeded")
+     * expect(failureResult("i failed again").getOr(() =>"boo")).toEqual("boo")
+     * ```
      */
     getOr(supplier: () => S): S {
         return (this.succeeded && this.value !== undefined) ? this.value : supplier();
@@ -473,6 +562,12 @@ export class Result<S, F extends ToString> {
      * @see getOrUndefined
      * @see getOrDefault
      * @see failureOrUndefined
+     *
+     * @example
+     * ```typescript
+     * expect(successResult("yay! i succeeded").getOrThrow()).toEqual("yay! i succeeded")
+     * expect(() => failureResult("i failed again").getOrThrow()).toThrow()
+     * ```
      */
     getOrThrow(): S {
         if (this.succeeded && this.value !== undefined) {
@@ -486,6 +581,12 @@ export class Result<S, F extends ToString> {
      * @see getOrUndefined
      * @see getOrDefault
      * @see getOrThrow
+     *
+     * @example
+     * ```typescript
+     * expect(successResult("yay! i succeeded").failureOrUndefined()).toBeUndefined()
+     * expect(failureResult("i failed again").failureOrUndefined()).toEqual("i failed again")
+     * ```
      */
     failureOrUndefined(): F | undefined {
         return this.error;
@@ -510,6 +611,12 @@ export class Result<S, F extends ToString> {
      * Factory method for creating a successful {@link Result}.
      * @param success The value of the successful operation.
      * @return A {@link Result} that holds the value of the successful operation and an undefined error.
+     *
+     * @example
+     * ```typescript
+     * const result = Result.success<Array<number>, string>([1, 2, 3, 4])
+     * const result = Result.success([1, 2, 3, 4])
+     * ```
      */
     static success<S, F extends ToString>(success: S): Result<S, F> {
         return new Result<S, F>({ success });
@@ -519,6 +626,11 @@ export class Result<S, F extends ToString> {
      * Factory method for creating a failure {@link Result}.
      * @param failure The error reported from the operation.
      * @return A {@link Result} that holds the failure and an undefined success
+     *
+     * @example
+     * ```typescript
+     * const result = Result.failure<Array<number>, string>("this failed")
+     * ```
      */
     static failure<S, F extends ToString>(failure: F): Result<S, F> {
         return new Result<S, F>({ failure });
@@ -531,6 +643,13 @@ export class Result<S, F extends ToString> {
      * @param results An array of results
      * @return A {@link Result} holding an array of successful values, or a failure if any of the results in
      * the array are failures.
+     * @see resultFromAll
+     *
+     * @example
+     * ```typescript
+     * const result = [1, 2, 3, 4, 5].map(elem => successResult<number, string>(elem))
+     * expect(resultFromAll(result).getOrThrow()).toEqual(successResult([1, 2, 3, 4, 5]).getOrThrow())
+     * ```
      */
     static fromAll<T, F extends ToString>(results: Array<Result<T, F>>): Result<Array<T>, string> {
         const successes = results.filter(result => result.succeeded).map(result => result.getOrThrow());
@@ -546,9 +665,20 @@ export class Result<S, F extends ToString> {
      * are failures, then returns a successful result holding an empty array.
      * @param results An array of results
      * @return A {@link Result} holding an array of successful values. Any failures will be discarded.
+     *
+     * @example
+     * ```typescript
+     * // create an array of Result objects -- successes and failures
+     * const result: Array<Result<number, string>> =
+     *      [...[1, 2, 3, 4, 5].map(x => successResult<number, string>(x)), failureResult('hmm')]
+     * expect(resultFromAny(result).succeeded).toBeTruthy()
+     * expect(resultFromAny(result).getOrThrow()).toEqual(successResult([1, 2, 3, 4, 5]).getOrThrow())
+     * ```
      */
     static fromAny<T, F extends ToString>(results: Array<Result<T, F>>): Result<Array<T>, string> {
-        return Result.success<Array<T>, string>(results.filter(result => result.succeeded).map(result => result.getOrThrow()));
+        return Result.success<Array<T>, string>(
+            results.filter(result => result.succeeded).map(result => result.getOrThrow())
+        );
     }
 }
 
@@ -578,6 +708,13 @@ export const failureResult = <S, F extends ToString>(failure: F): Result<S, F> =
  * @param results An array of results
  * @return A {@link Result} holding an array of successful values, or a failure if any of the results in
  * the array are failures.
+ * @see Result.fromAll
+ *
+ * @example
+ * ```typescript
+ * const result = [1, 2, 3, 4, 5].map(elem => successResult<number, string>(elem))
+ * expect(resultFromAll(result).getOrThrow()).toEqual(successResult([1, 2, 3, 4, 5]).getOrThrow())
+ * ```
  */
 export function resultFromAll<T, F extends ToString>(results: Array<Result<T, F>>): Result<Array<T>, string> {
     return Result.fromAll(results);
@@ -589,6 +726,15 @@ export function resultFromAll<T, F extends ToString>(results: Array<Result<T, F>
  * are failures, then returns a successful result holding an empty array.
  * @param results An array of results
  * @return A {@link Result} holding an array of successful values. Any failures will be discarded.
+ *
+ * @example
+ * ```typescript
+ * // create an array of Result objects -- successes and failures
+ * const result: Array<Result<number, string>> =
+ *      [...[1, 2, 3, 4, 5].map(x => successResult<number, string>(x)), failureResult('hmm')]
+ * expect(resultFromAny(result).succeeded).toBeTruthy()
+ * expect(resultFromAny(result).getOrThrow()).toEqual(successResult([1, 2, 3, 4, 5]).getOrThrow())
+ * ```
  */
 export function resultFromAny<T, F extends ToString>(results: Array<Result<T, F>>): Result<Array<T>, string> {
     return Result.fromAny(results);
@@ -612,6 +758,47 @@ export function resultFromAny<T, F extends ToString>(results: Array<Result<T, F>
  * @return A single {@link Result} which is either a success or failure. When the result is a success,
  * then the {@link Result} holds an array of success values. When the result is a failure, then the
  * {@link Result} holds an array of the failures.
+ *
+ * @example
+ * ```typescript
+ * // given an array of results
+ * const results: Array<Result<string, string>> = [
+ *      successResult("an apple"),
+ *      successResult("busy bumble bees"),
+ *      successResult("changing clothing causes constipation"),
+ *      successResult("doorknobs doorbells dinner ding dong")
+ * ]
+ * // for each result, count the number of words
+ * const combined = forEachResult<string, string, number, string>(
+ *      results,
+ *      result => result.map(value => value.split(" ").length)
+ * )
+ * expect(combined.succeeded).toBeTruthy()
+ * expect(combined.failed).toBeFalsy()
+ * expect(combined.getOrUndefined()).toBeDefined()
+ * expect(combined.getOrUndefined()).toEqual([2, 3, 4, 5])
+ * expect(combined.getOrElse([]).length).toBe(4)
+ *
+ * // if there are failures, then the whole thing fails
+ * const results: Array<Result<string, string>> = [
+ *      successResult("an apple"),
+ *      successResult("busy bumble bees"),
+ *                 successResult("changing clothing causes constipation"),
+ *                 failureResult("doorknobs doorbells dinner ding dong"),
+ *                 failureResult("oops only one operation ordinarily opens")
+ *             ]
+ *             const combined = forEachResult<string, string, number, string>(
+ *                 results,
+ *                 result => result.map(value => value.split(" ").length)
+ *             )
+ *             expect(combined.failed).toBeTruthy()
+ *             expect(combined.succeeded).toBeFalsy()
+ *             expect(combined.getOrUndefined()).toBeUndefined()
+ *             expect(combined.error).toEqual([
+ *                 "doorknobs doorbells dinner ding dong",
+ *                 "oops only one operation ordinarily opens"
+ *             ])
+ * ```
  */
 export function forEachResult<SI, FI extends ToString, SO, FO extends ToString>(
     resultList: Array<Result<SI, FI>>,
@@ -646,6 +833,7 @@ export function forEachResult<SI, FI extends ToString, SO, FO extends ToString>(
  * the failures are collected, and the overall result is a failure.
  *
  * @example
+ * ```typescript
  * const result = forEachElement(
  *      [1, 2, 3, 4, 5],
  *      elem => successResult(2 * elem)
@@ -653,8 +841,10 @@ export function forEachResult<SI, FI extends ToString, SO, FO extends ToString>(
  *  expect(result.succeeded).toBeTruthy()
  *  expect(result.getOrDefault([]).length).toBe(5)
  *  expect(result.getOrDefault([])).toEqual([2, 4, 6, 8, 10])
- *         
+ * ```
+ *
  * @example
+ * ```typescript
  * const result = forEachElement(
  *      [1, 2, 3, 4, 5],
  *      elem => elem === 3 ?
@@ -663,6 +853,7 @@ export function forEachResult<SI, FI extends ToString, SO, FO extends ToString>(
  *  )
  *  expect(result.failed).toBeTruthy()
  *  expect(result.error).toEqual(["three sucks"])
+ *  ```
  *         
  * @param elems The elements on which to perform a {@link Result} returning operation
  * @param handler The operation that accepts an element and returns a {@link Result}
@@ -700,6 +891,7 @@ export function forEachElement<V, S, F extends ToString>(
  * an array of successes, or an array of failures.
  *
  * @example
+ * ```typescript
  * const results = await forEachPromise([1,2,3,4,5], elem => new Promise<Result<number, string>>((resolve, reject) => {
  *     setTimeout(() => {
  *         resolve(successResult(elem * 2))
@@ -707,8 +899,10 @@ export function forEachElement<V, S, F extends ToString>(
  * }))
  *
  * expect(results.getOrThrow()).toEqual([2,4,6,8,10])
+ * ```
  *
  * @example
+ * ```typescript
  * const results = await forEachPromise([1,2,3,4,5], elem => new Promise<Result<number, string>>((resolve, reject) => {
  *     setTimeout(() => {
  *         if (elem % 2 === 0) {
@@ -721,6 +915,7 @@ export function forEachElement<V, S, F extends ToString>(
  *
  * expect(results.failed).toBeTruthy()
  * expect(results.error).toEqual(["number must be even", "number must be even", "number must be even"])
+ * ```
  *
  * @param elems The elements to which to apply the specified handler function
  * @param handler The function that returns a {@link Result} for a specified value
