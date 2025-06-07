@@ -43,7 +43,8 @@
       - [onFailure](#onfailure)
       - [always](#always)
       - [getOrUndefined](#getorundefined)
-      - [getOrDefault](#getordefault)
+      - [getOrDefault @deprecated, use getOrElse](#getordefault)
+      - [getOrElse](#getorelse)
       - [getOr](#getOr)
       - [getOrThrow](#getorthrow)
       - [failureOrUndefined](#failureorundefined)
@@ -132,7 +133,7 @@ function divide(dividend: number, divisor: number): Result<number, string> {
 // divide 100 by 10, then divide the result of that by 5, and then multiply 
 // that result by 5
 divide(100, 10)
-    .andThen(quotient => divide(quotient / 5))
+    .flatMap(quotient => divide(quotient / 5))
     .map(quotient => Math.PI * quotient)
     // prints 2π = 6.283185307179586 (definitely better than one π)
     .onSuccess(value => console.log(`2π = ${value}`))
@@ -140,7 +141,7 @@ divide(100, 10)
 
 // now let's attempt to divide by 0
 divide(100, 0)
-    .andThen(quotient => divide(quotient, 5))
+    .flatMap(quotient => divide(quotient, 5))
     .map(quotient => Math.PI * quotient)
     .onSuccess(value => console.log(`2π = ${value}`))
     // prints "Can't divide by zero!"
@@ -155,10 +156,10 @@ successful result that holds the value of the division operation using the `suce
 
 Next we attempt to divide 100 by 10, which result in 10, and then divide that by 5, which results in 2, and multiply
 that by π. Notice that there are no if-statements to check whether the result succeeded. Rather, we chain the results.
-The first call `divide(100, 10)` returns a success `Result` that wraps the value 10. Calling `andThen(callback)` on the
+The first call `divide(100, 10)` returns a success `Result` that wraps the value 10. Calling `flatMap(callback)` on the
 result causes the specified callback function to be called if, and only if, the `Result` on which we are
-calling `andThen(callback)` is a success. In other words, the first division succeeded, so the
-callback, `quotient => divide(quotient, 5)` will be called. The `andThen(...)` function is a flat-map. And we use in it
+calling `flatMap(callback)` is a success. In other words, the first division succeeded, so the
+callback, `quotient => divide(quotient, 5)` will be called. The `flatMap(...)` function is a flat-map. And we use in it
 this case because the `divide(...)` function returns a `Result`. In our example, the second division succeeds and so the
 callback handed to the `map(...)` function is called, which multiplies the resultant value by π. We use a `map` because
 the callback does not return a `Result`. The callback handed to the `onSuccess(...)` function is called because the
@@ -314,12 +315,12 @@ As an example of the first case, we have the following code.
 function canCalcPositiveSpotMetricFor(pigs: Array<Pig>): boolean {
     // the function 'complexSpotMetricFor(...)' returns a result that is
     // either a success of or failure. when it returns a failure, the
-    // result's 'getOrDefault(...)' returns a false. when the 
+    // result's 'getOrElse(...)' returns a false. when the 
     // 'complexSpotMetricFor(...)' function returns a success value that
     // is positive, then returns true
     return complexSpotMetricFor(pigs)
         .map(metric => metric > 0)
-        .getOrDefault(false)
+        .getOrElse(false)
 }
 ```
 
@@ -331,7 +332,7 @@ The `Result` has four unwrapping functions:
 
 1. `getOrUndefined()` -- which returns a success value, or if the result is a failure, it returns undefined. It's there
    for completeness, but not the best approach.
-2. `getOrDefault(value: S)` -- which returns the success value, or if the result is a failure, it returns the specified
+2. `getOrElse(value: S)` -- which returns the success value, or if the result is a failure, it returns the specified
    value. You've seen this one before.
 3. `getOrThrow()` -- which returns the success value, or if the result is a failure, it throws an error. Again, there
    for completeness, but not the best approach.
@@ -381,9 +382,9 @@ function handlePigScoreMessage(message: Message): void {
         // bad message, acknowledge and drop it
         .onFailure(reason => ackMessage(message.deliveryTag))
         // conversion succeeded, we have a valid message format
-        .andThen(pigScore => repo.insertWithRetry(pigScore.pig, pigScore.score)
+        .flatMap(pigScore => repo.insertWithRetry(pigScore.pig, pigScore.score)
             // when written successfully, then attempt to issue the certificate
-            .andThen(transaction => issueCertificate(pigScore.pig, pigScore.score)
+            .flatMap(transaction => issueCertificate(pigScore.pig, pigScore.score)
                 // commit or rollback the database transaction
                 .onSuccess(() => repo.commit(transaction))
                 .onFailure(() => repo.rollback(transaction))
@@ -403,7 +404,7 @@ message. The `handlePigScoreMessage(...)` first attempts to convert the message 
 if the message is invalid, and in that case, we acknowledge the message to get it off the queue and drop it. When the
 conversion succeeds, then we attempt to write it to the database using a transaction that includes issuing the
 certificate. The `insertWithRetry(...)` function attempts to write the pig' score. When it succeeds, the callback
-function specified in the chained `andThen(...)` is called, which attempts to issue the certificate. A failure to issue
+function specified in the chained `flatMap(...)` is called, which attempts to issue the certificate. A failure to issue
 the certificate cause the database transaction to be rolled back. Successfully issuing the certificate caused the
 database transaction to be committed. In the event that issuing the certificate fails, the transaction is rolled back,
 and the outer `onFailure(...)` calls the function to reject the message so that it can be reprocessed. When the database
@@ -422,13 +423,13 @@ Recall that a result can be either a `success` or a `failure`. In the above diag
 the result is a `success`, and it will return the value returned by `convertValue(...)`. When the result is a `failure`,
 then the result's `map(callback: value => otherValue)` function does **not** call `convertValue(...)`, but rather merely
 returns the `failure`. Because the `map(...)` function returns the `result`, but with an updated value, if the `result`
-was originally a `success`, then the `possiblyFails(...)` callback passed to the `andThen(callback: value => Result)`
-function will be called. The `andThen(...)` is a flat map function. The callback to the `andThen(...)` function returns
-a `Result` and this `Result` itself, so we have a `Result<Result<SP, F>>` and the `andThen(...)` flattens that to
+was originally a `success`, then the `possiblyFails(...)` callback passed to the `flatMap(callback: value => Result)`
+function will be called. The `flatMap(...)` is a flat map function. The callback to the `flatMap(...)` function returns
+a `Result` and this `Result` itself, so we have a `Result<Result<SP, F>>` and the `flatMap(...)` flattens that to
 a `Result<SP, F>`.
 
 This idea is represented graphically in the diagram. If the result is a failure, the first `map`
-passes the failure to the `andThen`, which passes the failure to the next `andThen` which passes the failure to
+passes the failure to the `flatMap`, which passes the failure to the next `flatMap` which passes the failure to
 the `onSuccess` which passes the failure to the `onFailure` which logs the error to the console.
 
 ### arrays of results
@@ -467,7 +468,7 @@ function countSpotsFor(pig: Pig): Result<number, string> {
  */
 function countSpotsOn(pigs: Array<Pig>): Result<Array<PigSpot>, string> {
     const counts: Array<Result<PigSpot, string>> = pigs
-        .map(pig => verifyPig(pig).andThen(verifiedPig => countSpotsFor(verifiedPig)))
+        .map(pig => verifyPig(pig).flatMap(verifiedPig => countSpotsFor(verifiedPig)))
     // flatten the Array<Result<PigSpot, string>> to an Result<Array<PigSpot>, string>, throwing
     // out any of the failures
     return resultFromAny(counts)
@@ -1139,7 +1140,22 @@ Returns
 When this result is a success, then returns the value. Otherwise returns `undefined`.
 
 
-See also `getOrDefault`, `getOrThrow`, `failureOrUndefined`, `getOr`
+See also `getOrElse`, `getOrThrow`, `failureOrUndefined`, `getOr`
+
+<hr>
+
+#### getOrElse
+
+```typescript
+getOrElse: (value: S) => S
+```
+
+Returns
+
+When this result is a success, then returns the value. Otherwise, returns the specified
+default value.
+
+See also `getOrUndefined`, `getOrThrow`, `failureOrUndefined`, `getOr`
 
 <hr>
 
@@ -1149,12 +1165,14 @@ See also `getOrDefault`, `getOrThrow`, `failureOrUndefined`, `getOr`
 getOrDefault: (value: S) => S
 ```
 
+**DEPRECATED** use getOrElse
+
 Returns
 
 When this result is a success, then returns the value. Otherwise, returns the specified
 default value.
 
-See also `getOrUndefined`, `getOrThrow`, `failureOrUndefined`, `getOr`
+See also `getOrUndefined`, `getOrThrow`, `failureOrUndefined`, `getOr`, `getOrElse`
 
 <hr>
 
