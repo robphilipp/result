@@ -28,7 +28,7 @@ describe('when creating a Result', () => {
         expect(result.failed).toBeTruthy()
         expect(result.succeeded).toBeFalsy()
         expect(result.getOrUndefined()).toBeUndefined()
-        expect(() => result.getOrThrow()).toThrowError("failed to work")
+        expect(() => result.getOrThrow()).toThrow("failed to work")
         expect(result.getOrElse([2, 4, 6])).toEqual([2, 4, 6])
         expect(result.getOr(() => [2, 4, 6])).toEqual([2, 4, 6])
     })
@@ -49,7 +49,7 @@ describe('when creating a Result', () => {
         expect(result.failed).toBeTruthy()
         expect(result.succeeded).toBeFalsy()
         expect(result.getOrUndefined()).toBeUndefined()
-        expect(() => result.getOrThrow()).toThrowError("failed to work")
+        expect(() => result.getOrThrow()).toThrow("failed to work")
         expect(result.getOrElse([2, 4, 6])).toEqual([2, 4, 6])
         expect(result.getOr(() => [2, 4, 6])).toEqual([2, 4, 6])
     })
@@ -65,7 +65,7 @@ describe('when manipulating a Result from a failure', () => {
             expect(result.failed).toBeTruthy()
             expect(result.succeeded).toBeFalsy()
             expect(result.getOrUndefined()).toBeUndefined()
-            expect(() => result.getOrThrow()).toThrowError("failed to work")
+            expect(() => result.getOrThrow()).toThrow("failed to work")
             expect(result.getOrElse([2, 4, 6])).toEqual([2, 4, 6])
         })
 
@@ -76,7 +76,7 @@ describe('when manipulating a Result from a failure', () => {
             expect(result.succeeded).toBeFalsy()
             expect(result.getOrUndefined()).toBeUndefined()
             expect(result.error).toBe("failed to work, but didn't")
-            expect(() => result.getOrThrow()).toThrowError("failed to work, but didn't")
+            expect(() => result.getOrThrow()).toThrow("failed to work, but didn't")
         })
 
         it('should be able to map a failure when mapping result of failure', () => {
@@ -146,7 +146,7 @@ describe('when manipulating a Result from a failure', () => {
             expect(result.failed).toBeTruthy()
             expect(result.succeeded).toBeFalsy()
             expect(result.getOrUndefined()).toBeUndefined()
-            expect(() => result.getOrThrow()).toThrowError("failed to work")
+            expect(() => result.getOrThrow()).toThrow("failed to work")
             expect(result.getOrElse([2, 4, 6])).toEqual([2, 4, 6])
         })
 
@@ -156,7 +156,7 @@ describe('when manipulating a Result from a failure', () => {
             expect(result.failed).toBeTruthy()
             expect(result.succeeded).toBeFalsy()
             expect(result.getOrUndefined()).toBeUndefined()
-            expect(() => result.getOrThrow()).toThrowError("failed to work")
+            expect(() => result.getOrThrow()).toThrow("failed to work")
             expect(result.getOrElse([2, 4, 6])).toEqual([2, 4, 6])
         })
     })

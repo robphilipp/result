@@ -1,5 +1,10 @@
 # version history for `Result`
 
+## version 0.3.0
+
+1. Adds the `Optional` class as a buddy to the `Result` class.
+2. Updates versions and cleans up warnings and other code linting issues.
+
 ## version 0.2.0
 
 This is really a no-op from the interface contract perspective. But changed to use classes rather than pure functional simply because the method docs are better, and it does simplify (decomplexify) the code a bit (from its original undecomplexified form). 

@@ -330,7 +330,7 @@ export class Result<S, F extends ToString> {
      *     .mapFailure(() => "not a failure but changes failure type")
      * ```
      */
-    mapFailure<FP>(mapper: (failure: F) => FP): Result<S, FP> {
+    mapFailure<FP extends ToString>(mapper: (failure: F) => FP): Result<S, FP> {
         if (this.failed && this.error !== undefined) {
             return new Result<S, FP>({ failure: mapper(this.error) });
         }
@@ -386,15 +386,16 @@ export class Result<S, F extends ToString> {
         // create a guard to test if the promised value is a result. specifically, the guard ensures that
         // the promised value has a flatMap function. this is a type-predicate signature that returns true
         // when the value has a `flatMap` function, and once asserted, then the value takes on that type.
-        const hasAndThen =
-            <S, F extends ToString>(value: any): value is Result<S, F> => 'flatMap' in value;
+        // const hasAndThen =
+        //     <S, F extends ToString>(value: Result<S, F>): value is Result<S, F> => 'flatMap' in value;
 
         if (this.succeeded && this.value !== undefined) {
             if (this.value instanceof Promise) {
                 try {
                     const promisedValue = await (this.value as Promise<SP>);
                     // when the promised value is already a result, then just return it
-                    if (hasAndThen<SP, F>(promisedValue)) {
+                    if (promisedValue instanceof Result) {
+                    // if (hasAndThen<SP, F>(promisedValue)) {
                         return promisedValue;
                     }
                     // otherwise, wrap it in a result
@@ -559,6 +560,7 @@ export class Result<S, F extends ToString> {
     /**
      * @return When this result is a success, then returns the value. Otherwise, throws an error that
      * contains the error in this result.
+     * @param [errorFactory] A function that accepts the failure and returns an error to throw.
      * @see getOrUndefined
      * @see getOrDefault
      * @see failureOrUndefined
@@ -569,9 +571,12 @@ export class Result<S, F extends ToString> {
      * expect(() => failureResult("i failed again").getOrThrow()).toThrow()
      * ```
      */
-    getOrThrow(): S {
-        if (this.succeeded && this.value !== undefined) {
+    getOrThrow(errorFactory?: (failure: F) => Error): S {
+        if (this.succeeded && this.value !== undefined && this.value !== null) {
             return this.value;
+        }
+        if (errorFactory && this.error) {
+            throw errorFactory(this.error)
         }
         throw Error(this.error?.toString());
     }
@@ -921,7 +926,7 @@ export function forEachElement<V, S, F extends ToString>(
  * @param handler The function that returns a {@link Result} for a specified value
  * @return a {@link Promise} to a {@link Result} holding an array of successes, or an array of failures.
  */
-export async function forEachPromise<V, S, F>(
+export async function forEachPromise<V, S, F extends ToString>(
     elems: Array<V>,
     handler: (elem: V) => Promise<Result<S, F>>
 ): Promise<Result<Array<S>, Array<F>>> {
@@ -932,8 +937,7 @@ export async function forEachPromise<V, S, F>(
         // when there are failures, then the overall result is a failure, and report it
         const rejected = promisedResults
             .filter(settled => settled.status === 'rejected')
-            // @ts-ignore
-            .map(settled => settled.reason)
+            .map(settled => (settled as PromiseRejectedResult).reason)
         if (rejected.length > 0) {
             return Result.failure(rejected.map(reject => reject))
         }
@@ -941,8 +945,7 @@ export async function forEachPromise<V, S, F>(
         // no failures so report the success results
         const succeeded: Array<Result<S, F>> = promisedResults
             .filter(settled => settled.status === 'fulfilled')
-            // @ts-ignore
-            .map(settled => settled.value)
+            .map(settled => (settled as PromiseFulfilledResult<Result<S, F>>).value)
         return forEachResult(succeeded, result => result)
     } catch (reason) {
         // something went terribly wrong
@@ -979,7 +982,7 @@ export function reduceToResult<V, S, F extends ToString>(
                 failures.push(result.error);
                 return reducedValue;
             }
-            return result.value || reducedValue;
+            return result.value != null ? result.value : reducedValue;
         },
         initialValue
     );
