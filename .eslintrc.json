@@ -7,7 +7,8 @@
   "parser": "@typescript-eslint/parser",
   "parserOptions": { "project": ["./tsconfig.json"] },
   "plugins": [
-    "@typescript-eslint"
+    "@typescript-eslint",
+    "eslint-plugin-promise"
   ],
   "rules": {
     "@typescript-eslint/strict-boolean-expressions": [
@@ -18,5 +19,13 @@
       }
     ]
   },
+  "@typescript-eslint/no-explicit-any": "on",
+  "@typescript-eslint/no-misused-promises": [true, { "checksVoidReturn": true }],
+  "@typescript-eslint/no-unused-vars": [
+    "error",
+    { "argsIgnorePattern": "^_" }
+  ],
+  "no-unnecessary-type-assertion": [true],
+  "consistent-type-imports": [true],
   "ignorePatterns": ["*.test.ts", "dist/**"]
 }

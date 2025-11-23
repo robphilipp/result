@@ -6,3 +6,4 @@ export {
     forEachPromise,
     reduceToResult
 } from './Result';
+export {Optional} from './Optional';

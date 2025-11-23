@@ -32,7 +32,7 @@
       - [nonEqual](#nonequal)
       - [map](#map)
       - [andThen @deprecated, use flatMap](#andthen)
-      - [flatMap](#flatMap)
+      - [flatMap](#flatmap)
       - [conditionalMap](#conditionalMap)
       - [conditionalFlatMap](#conditionalFlatMap)
       - [filter](#filter)
