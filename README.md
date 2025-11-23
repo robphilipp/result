@@ -1,53 +1,71 @@
-# Result
+# Result and Optional
 
 > For changes see [CHANGES.md](./CHANGES.md)
 
 ## toc
 
 - [toc](#toc)
-- [what?](#what)
-- [rant](#rant)
-- [why?](#why)
-- [what else?](#what-else)
-- [usage patterns](#usage-patterns)
-   - [wrap](#wrap)
-   - [unwrap](#unwrap)
-   - [callback](#callback)
-   - [chaining](#chaining)
-   - [arrays of results](#arrays-of-results)
-   - [results and promises](#results-and-promises)
-- [api](#api)
-   - [factory functions](#factory-functions)
-      - [successResult](#successresult)
-      - [failureResult](#failureresult)
-      - [resultFromAll](#resultfromall)
-      - [resultFromAny](#resultfromany)
-      - [forEachResult](#foreachresult)
-      - [forEachElement](#foreachelement)
-      - [forEachPromise](#foreachpromise)
-      - [reduceToResult](#reducetoresult)
-   - [properties](#properties)
-   - [methods](#methods)
-      - [equals](#equals)
-      - [nonEqual](#nonequal)
-      - [map](#map)
-      - [andThen @deprecated, use flatMap](#andthen)
-      - [flatMap](#flatmap)
-      - [conditionalMap](#conditionalMap)
-      - [conditionalFlatMap](#conditionalFlatMap)
-      - [filter](#filter)
-      - [mapFailure](#mapfailure)
-      - [asFailureOf](#asfailureof)
-      - [liftPromise](#liftpromise)
-      - [onSuccess](#onsuccess)
-      - [onFailure](#onfailure)
-      - [always](#always)
-      - [getOrUndefined](#getorundefined)
-      - [getOrDefault @deprecated, use getOrElse](#getordefault)
-      - [getOrElse](#getorelse)
-      - [getOr](#getOr)
-      - [getOrThrow](#getorthrow)
-      - [failureOrUndefined](#failureorundefined)
+- [result](#result)
+  - [what?](#what)
+  - [rant](#rant)
+  - [why?](#why)
+  - [what else?](#what-else)
+  - [usage patterns](#usage-patterns)
+     - [wrap](#wrap)
+     - [unwrap](#unwrap)
+     - [callback](#callback)
+     - [chaining](#chaining)
+     - [arrays of results](#arrays-of-results)
+     - [results and promises](#results-and-promises)
+  - [api](#api)
+     - [factory functions](#factory-functions)
+        - [successResult](#successresult)
+        - [failureResult](#failureresult)
+        - [resultFromAll](#resultfromall)
+        - [resultFromAny](#resultfromany)
+        - [forEachResult](#foreachresult)
+        - [forEachElement](#foreachelement)
+        - [forEachPromise](#foreachpromise)
+        - [reduceToResult](#reducetoresult)
+     - [properties](#properties)
+     - [methods](#methods)
+        - [equals](#equals)
+        - [nonEqual](#nonequal)
+        - [map](#map)
+        - [andThen @deprecated, use flatMap](#andthen)
+        - [flatMap](#flatmap)
+        - [conditionalMap](#conditionalMap)
+        - [conditionalFlatMap](#conditionalFlatMap)
+        - [filter](#filter)
+        - [mapFailure](#mapfailure)
+        - [asFailureOf](#asfailureof)
+        - [liftPromise](#liftpromise)
+        - [onSuccess](#onsuccess)
+        - [onFailure](#onfailure)
+        - [always](#always)
+        - [getOrUndefined](#getorundefined)
+        - [getOrDefault @deprecated, use getOrElse](#getordefault)
+        - [getOrElse](#getorelse)
+        - [getOr](#getOr)
+        - [getOrThrow](#getorthrow)
+        - [failureOrUndefined](#failureorundefined)
+- [optional](#optional)
+    - [optional overview](#optional-overview)
+    - [optional install and import](#optional-install-and-import)
+    - [optional api](#optional-api)
+        - [optional factory functions](#optional-factory-functions)
+            - [optional.of](#optionalof)
+            - [optional.ofnullable](#optionalofnullable)
+            - [optional.empty](#optionalempty)
+        - [optional methods](#optional-methods)
+            - [optional isempty](#optional-isempty)
+            - [optional isnotempty](#optional-isnotempty)
+            - [optional getorelse](#optional-getorelse)
+            - [optional getorthrow](#optional-getorthrow)
+            - [optional map](#optional-map)
+            - [optional filter](#optional-filter)
+
+## Result
 
 ## what?
 
@@ -1217,3 +1235,104 @@ Returns
 When this result is a failure, then returns the error. Otherwise, returns `undefined`.
 
 See also `getOrUndefined`, `getOrDefault`, `getOrThrow`   
+
+## Optional
+
+### Optional overview
+
+`Optional<T>` represents a value that may be present or absent. It is similar to Java's `Optional` and helps avoid scattered `null`/`undefined` checks.
+
+- Use `Optional.of` when you know a value is non-null and non-undefined.
+- Use `Optional.ofNullable` when the value may be `null` or `undefined`.
+- Use `Optional.empty` to construct an empty optional explicitly.
+
+`Optional` is exported from the package root:
+
+```ts
+import { Optional } from 'result-fn'
+```
+
+### Optional api
+
+#### Optional factory functions
+
+##### Optional.of
+
+```ts
+const a = Optional.of(42)
+// a.isNotEmpty() === true
+// a.isEmpty()    === false
+```
+
+Notes:
+- `Optional.of` requires a non-null/non-undefined input at compile time.
+
+##### Optional.ofNullable
+
+```ts
+Optional.ofNullable('hello').isNotEmpty() // true
+Optional.ofNullable(null).isEmpty()       // true
+Optional.ofNullable(undefined).isEmpty()  // true
+```
+
+##### Optional.empty
+
+```ts
+const empty = Optional.empty<number>()
+empty.isEmpty() // true
+```
+
+#### Optional methods
+
+##### Optional isEmpty
+
+```ts
+Optional.empty().isEmpty()      // true
+Optional.of('value').isEmpty()  // false
+```
+
+##### Optional isNotEmpty
+
+```ts
+Optional.of(123).isNotEmpty() // true
+Optional.empty().isNotEmpty() // false
+```
+
+##### Optional getOrElse
+
+```ts
+Optional.of(10).getOrElse(20)          // 10
+Optional.empty<number>().getOrElse(20) // 20
+```
+
+##### Optional getOrThrow
+
+```ts
+Optional.of('test').getOrThrow(() => new Error('Value is missing')) // 'test'
+
+// Throws
+Optional.empty<string>().getOrThrow(() => new Error('Value is missing'))
+```
+
+##### Optional map
+
+Transforms the contained value when present.
+
+```ts
+Optional.of(5).map(v => v * 2).getOrElse(0)            // 10
+Optional.empty<number>().map(v => v * 2).isEmpty()      // true
+Optional.of(1).map(() => null as any).isEmpty()         // true (null collapses to empty)
+Optional.of(1).map(() => undefined as any).isEmpty()    // true (undefined collapses to empty)
+```
+
+Note: When the mapper returns `null` or `undefined`, the resulting `Optional` becomes empty (by design).
+
+##### Optional filter
+
+Keeps the value only if it matches the predicate.
+
+```ts
+Optional.of(10).filter(v => v > 5).getOrElse(0) // 10
+Optional.of(3).filter(v => v > 5).isEmpty()     // true
+Optional.empty<number>().filter(v => v > 5).isEmpty() // true
+```

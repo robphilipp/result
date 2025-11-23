@@ -2,6 +2,8 @@
 
 ## version 0.3.0
 
+1. Adds the `Optional` class as a buddy to the `Result` class.
+2. Updates versions and cleans up warnings and other code linting issues.
 
 ## version 0.2.0
 
