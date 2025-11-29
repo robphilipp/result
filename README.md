@@ -64,6 +64,7 @@
             - [optional getorthrow](#optional-getorthrow)
             - [optional map](#optional-map)
             - [optional filter](#optional-filter)
+            - [optional isPresent](#optional-ispresent)
 
 ## Result
 
@@ -132,7 +133,7 @@ if-statements in our code, one to check the result of each call.
 The `Result` provides a clean way of telegraphing that a function may fail, reporting why it failed. `Result` also
 allows these results to be chained without the need for if-statements or try-catch blocks. Let's look at an example.
 
-```ts
+```typescript
 import {failureResult, successResult} from "./Result";
 
 /**
@@ -189,7 +190,7 @@ the `onFailure(...)` function is called because the `divide(...)` function retur
 
 This code is clear and concise. Let's see what happens when rewrite the previous example without the `Result`.
 
-```ts
+```typescript
 /**
  * Attempts to divide the dividend by the divisor
  * @param dividend The number on top
@@ -1248,7 +1249,7 @@ See also `getOrUndefined`, `getOrDefault`, `getOrThrow`
 
 `Optional` is exported from the package root:
 
-```ts
+```typescript
 import { Optional } from 'result-fn'
 ```
 
@@ -1258,7 +1259,11 @@ import { Optional } from 'result-fn'
 
 ##### Optional.of
 
-```ts
+```typescript
+of: <T>(value: NonNullable<T>) => Optional<T>
+```
+
+```typescript
 const a = Optional.of(42)
 // a.isNotEmpty() === true
 // a.isEmpty()    === false
@@ -1269,7 +1274,11 @@ Notes:
 
 ##### Optional.ofNullable
 
-```ts
+```typescript
+ofNullable: <T>(value?: T | null) => Optional<T>
+```
+
+```typescript
 Optional.ofNullable('hello').isNotEmpty() // true
 Optional.ofNullable(null).isEmpty()       // true
 Optional.ofNullable(undefined).isEmpty()  // true
@@ -1277,7 +1286,11 @@ Optional.ofNullable(undefined).isEmpty()  // true
 
 ##### Optional.empty
 
-```ts
+```typescript
+empty: <T>() => Optional<T>
+```
+
+```typescript
 const empty = Optional.empty<number>()
 empty.isEmpty() // true
 ```
@@ -1286,28 +1299,44 @@ empty.isEmpty() // true
 
 ##### Optional isEmpty
 
-```ts
+```typescript
+isEmpty: () => boolean
+```
+
+```typescript
 Optional.empty().isEmpty()      // true
 Optional.of('value').isEmpty()  // false
 ```
 
 ##### Optional isNotEmpty
 
-```ts
+```
+isNotEmpty: () => this is Optional<NonNullable<T>>
+```
+
+```typescript
 Optional.of(123).isNotEmpty() // true
 Optional.empty().isNotEmpty() // false
 ```
 
 ##### Optional getOrElse
 
-```ts
+```typescript
+getOrElse: (defaultValue: T) => T
+```
+
+```typescript
 Optional.of(10).getOrElse(20)          // 10
 Optional.empty<number>().getOrElse(20) // 20
 ```
 
 ##### Optional getOrThrow
 
-```ts
+```typescript
+getOrThrow: <E extends Error>(supplier: () => E) => T
+```
+
+```typescript
 Optional.of('test').getOrThrow(() => new Error('Value is missing')) // 'test'
 
 // Throws
@@ -1318,7 +1347,11 @@ Optional.empty<string>().getOrThrow(() => new Error('Value is missing'))
 
 Transforms the contained value when present.
 
-```ts
+```typescript
+map: <U>(mapper: (value: T) => U) => Optional<U>
+```
+
+```typescript
 Optional.of(5).map(v => v * 2).getOrElse(0)            // 10
 Optional.empty<number>().map(v => v * 2).isEmpty()      // true
 Optional.of(1).map(() => null as any).isEmpty()         // true (null collapses to empty)
@@ -1331,8 +1364,25 @@ Note: When the mapper returns `null` or `undefined`, the resulting `Optional` be
 
 Keeps the value only if it matches the predicate.
 
-```ts
+```typescript
+filter: (predicate: (value: T) => boolean) => Optional<T>
+```
+
+```typescript
 Optional.of(10).filter(v => v > 5).getOrElse(0) // 10
 Optional.of(3).filter(v => v > 5).isEmpty()     // true
 Optional.empty<number>().filter(v => v > 5).isEmpty() // true
+```
+
+##### Optional ifPresent
+
+Executes the supplied callback when the value is present.
+
+```typescript
+ifPresent: (fn: (value: T) => void) => Optional<T>
+```
+
+```typescript
+Optional.of(10).ifPresent(v => console.log(v)) // prints 10
+Optional.empty<number>().ifPresent(v => console.log(v)) // does not print anything
 ```
