@@ -112,4 +112,23 @@ describe('Optional', () => {
             expect(optional.isEmpty()).toBe(true);
         });
     });
+
+    describe('ifPresent', () => {
+        it('should call the callback function with the value in the Optional if it is present', () => {
+            const optional = Optional.of<number>(10);
+            const callback = jest.fn();
+            const returnedOptional = optional.ifPresent(callback);
+            expect(callback).toHaveBeenCalledWith(10);
+            expect(returnedOptional).toEqual(optional)
+        })
+
+        it('should not call the callback function with the value in the Optional if it is not present', () => {
+            const optional = Optional.empty<number>();
+            const callback = jest.fn();
+            const returnedOptional = optional.ifPresent(callback);
+            expect(callback).not.toHaveBeenCalled();
+            expect(returnedOptional).toEqual(optional)
+            expect(returnedOptional.isEmpty()).toBe(true)
+        })
+    })
 });

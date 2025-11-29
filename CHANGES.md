@@ -1,5 +1,9 @@
 # version history for `Result`
 
+## version 0.4.0
+
+Adds `Optional.ifPresent` method that executes the supplied callback function if the optional is present.
+
 ## version 0.3.0
 
 1. Adds the `Optional` class as a buddy to the `Result` class.

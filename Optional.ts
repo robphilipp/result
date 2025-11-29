@@ -4,7 +4,7 @@
  * It is similar in spirit to Java's `Optional`. Use `Optional.of` when you know the
  * value is present, and `Optional.ofNullable` when the value may be `null` or `undefined`.
  *
- * Examples
+ * @example
  * ```ts
  * // Creating non-empty and empty optionals
  * const a = Optional.of(42);
@@ -31,8 +31,9 @@ export class Optional<T> {
 
     /**
      * Create a non-empty `Optional` from a non-null / non-undefined value.
-     *
-     * Example
+     * @param value The value to wrap in an `Optional`
+     * @return An `Optional` containing the provided value.
+     * @example
      * ```ts
      * const optional = Optional.of(42);
      * optional.isNotEmpty(); // true
@@ -45,8 +46,10 @@ export class Optional<T> {
 
     /**
      * Create an `Optional` that may be empty if the provided value is `null` or `undefined`.
-     *
-     * Examples
+     * @param value The value to wrap in an `Optional`
+     * @return An `Optional` containing the provided value if it is not `null` or `undefined`,
+     * otherwise an empty `Optional`.
+     * @example
      * ```ts
      * Optional.ofNullable('hello').isNotEmpty(); // true
      * Optional.ofNullable(null).isEmpty();       // true
@@ -59,8 +62,8 @@ export class Optional<T> {
 
     /**
      * Create an empty `Optional`.
-     *
-     * Example
+     * @return An empty `Optional`.
+     * @example
      * ```ts
      * const optional = Optional.empty();
      * optional.isEmpty(); // true
@@ -72,8 +75,8 @@ export class Optional<T> {
 
     /**
      * Check whether the optional is empty (its value is `null` or `undefined`).
-     *
-     * Examples
+     * @return `true` if the optional is empty, `false` otherwise.
+     * @example
      * ```ts
      * Optional.empty().isEmpty(); // true
      * Optional.of('value').isEmpty(); // false
@@ -85,8 +88,8 @@ export class Optional<T> {
 
     /**
      * Check whether the optional contains a value (not `null`/`undefined`).
-     *
-     * Examples
+     * @return `true` if the optional contains a value, `false` otherwise.
+     * @example
      * ```ts
      * Optional.of(123).isNotEmpty(); // true
      * Optional.empty().isNotEmpty(); // false
@@ -98,8 +101,9 @@ export class Optional<T> {
 
     /**
      * Return the contained value if present, otherwise return the provided default.
-     *
-     * Examples
+     * @param defaultValue The default value to return if the optional is empty.
+     * @return The contained value if present, otherwise the provided default.
+     * @example
      * ```ts
      * Optional.of(10).getOrElse(20); // 10
      * Optional.empty<number>().getOrElse(20); // 20
@@ -114,8 +118,10 @@ export class Optional<T> {
 
     /**
      * Return the contained value if present, otherwise throw the error produced by `supplier`.
-     *
-     * Examples
+     * @param supplier A function that produces an error to throw if the optional is empty.
+     * @return The contained value if present, otherwise throws the error produced by `supplier`.
+     * @throws The error produced by `supplier` if the optional is empty.
+     * @example
      * ```ts
      * Optional.of('test').getOrThrow(() => new Error('Value is missing')); // 'test'
      *
@@ -132,8 +138,11 @@ export class Optional<T> {
 
     /**
      * Transform the contained value with `mapper` if present, otherwise return an empty `Optional`.
-     *
-     * Examples
+     * @param mapper A function that transforms the contained value.
+     * @return An `Optional` containing the result of the transformation if the optional is not empty,
+     * otherwise an empty `Optional`.
+     * @template U The type of the result of the transformation.
+     * @example
      * ```ts
      * Optional.of(5).map(v => v * 2).getOrElse(0);          // 10
      * Optional.empty<number>().map(v => v * 2).isEmpty();    // true
@@ -148,8 +157,9 @@ export class Optional<T> {
 
     /**
      * Keep the value only if it matches the `predicate`; otherwise return an empty `Optional`.
-     *
-     * Examples
+     * @param predicate The predicate that determines whether the value should be kept or discarded
+     * @return An `Optional` containing the value if it matches the predicate, or an empty `Optional` otherwise.
+     * @example
      * ```ts
      * Optional.of(10).filter(v => v > 5).getOrElse(0); // 10
      * Optional.of(3).filter(v => v > 5).isEmpty();     // true
@@ -161,5 +171,22 @@ export class Optional<T> {
             return Optional.ofNullable<T>(this.value as T)
         }
         return Optional.empty<T>()
+    }
+
+    /**
+     * Applies the specified function to the value in the optional has a value
+     * @param fn Function that is applied to the value
+     * @return The original optional
+     * @example
+     * ```ts
+     * Optional.of(10).ifPresent(v => console.log(v)); // prints 10
+     * Optional.empty<number>().ifPresent(v => console.log(v)); // does not print anything
+     * ```
+     */
+    ifPresent(fn: (value: T) => void): Optional<T> {
+        if (this.isNotEmpty()) {
+            fn(this.value as T)
+        }
+        return this
     }
 }
