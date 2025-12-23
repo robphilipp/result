@@ -1,5 +1,11 @@
 # version history for `Result`
 
+## version 0.5.0
+
+1. Adds `Optional.flatMap` method
+2. Adds `Optional.getOrUndefined` method that returns the value if present, or `undefined` if absent.
+3. Adds `Optional.getOr` method that returns the value if present, or a value from the supplier function if absent.
+
 ## version 0.4.0
 
 Adds `Optional.ifPresent` method that executes the supplied callback function if the optional is present.

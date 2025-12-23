@@ -51,20 +51,22 @@
         - [failureOrUndefined](#failureorundefined)
 - [optional](#optional)
     - [optional overview](#optional-overview)
-    - [optional install and import](#optional-install-and-import)
     - [optional api](#optional-api)
         - [optional factory functions](#optional-factory-functions)
-            - [optional.of](#optionalof)
-            - [optional.ofnullable](#optionalofnullable)
-            - [optional.empty](#optionalempty)
+            - [of](#optionalof)
+            - [ofNullable](#optionalofnullable)
+            - [empty](#optionalempty)
         - [optional methods](#optional-methods)
-            - [optional isempty](#optional-isempty)
-            - [optional isnotempty](#optional-isnotempty)
-            - [optional getorelse](#optional-getorelse)
-            - [optional getorthrow](#optional-getorthrow)
-            - [optional map](#optional-map)
-            - [optional filter](#optional-filter)
-            - [optional isPresent](#optional-ispresent)
+            - [isEmpty](#optional-isempty)
+            - [isNotEmpty](#optional-isnotempty)
+            - [getOrElse](#optional-getorelse)
+            - [getOrThrow](#optional-getorthrow)
+            - [getOr](#optional-getor)
+            - [getOrUndefined](#optional-getorundefined)
+            - [map](#optional-map)
+            - [flatMap](#optional-flatmap)
+            - [filter](#optional-filter)
+            - [isPresent](#optional-ispresent)
 
 ## Result
 
@@ -76,7 +78,7 @@ cool.
 
 ## rant
 
-Have you ever been ask to fix a bug or add a feature to someone else's code? And as you're testing, some exceptions is
+Have you ever been asked to fix a bug or add a feature to someone else's code? And as you're testing, some exceptions is
 thrown, but you don't know exactly where. So you look at the stack trace and work through the code. You add a try/catch.
 Good to go. Oops, and now there is another exceptions. The point is, there could be a hundred exceptions thrown. And
 just inspecting the code gives you very little insight into the list of possible exceptions. An exception could be
@@ -1321,6 +1323,8 @@ Optional.empty().isNotEmpty() // false
 
 ##### Optional getOrElse
 
+Returns the value if present, or a default value otherwise.
+
 ```typescript
 getOrElse: (defaultValue: T) => T
 ```
@@ -1332,6 +1336,8 @@ Optional.empty<number>().getOrElse(20) // 20
 
 ##### Optional getOrThrow
 
+Returns the value if it is present, otherwise throws an error.
+
 ```typescript
 getOrThrow: <E extends Error>(supplier: () => E) => T
 ```
@@ -1341,6 +1347,32 @@ Optional.of('test').getOrThrow(() => new Error('Value is missing')) // 'test'
 
 // Throws
 Optional.empty<string>().getOrThrow(() => new Error('Value is missing'))
+```
+
+##### Optional getOr
+
+Returns the value if present, otherwise returns the value provided by the supplier.
+
+```typescript
+getOr: <U>(supplier: () => U) => T | U
+```
+
+```typescript
+Optional.of(10).getOr(() => 20)          // 10
+Optional.empty<number>().getOr(() => 20) // 20
+```
+
+##### Optional getOrUndefined
+
+Returns the value if present, otherwise returns `undefined`.
+
+```typescript
+getOrUndefined: () => T | undefined
+```
+
+```typescript
+Optional.of(10).getOrUndefined()          // 10
+Optional.empty<number>().getOrUndefined() // undefined
 ```
 
 ##### Optional map
@@ -1359,6 +1391,21 @@ Optional.of(1).map(() => undefined as any).isEmpty()    // true (undefined colla
 ```
 
 Note: When the mapper returns `null` or `undefined`, the resulting `Optional` becomes empty (by design).
+
+##### Optional flatmap
+
+Tansforms the contained value when present, and returns a new `Optional` with the result.
+
+```typescript
+flatMap: <U>(mapper: (value: T) => Optional<U>) => Optional<U>
+```
+
+```typescript
+Optional.of(5).flatMap(v => Optional.of(v * 2)).getOrElse(0)            // 10
+Optional.empty<number>().flatMap(v => Optional.of(v * 2)).isEmpty()      // true
+Optional.of(1).flatMap(() => Optional.empty<number>()).isEmpty()         // true (null collapses to empty)
+Optional.of(1).flatMap(() => Optional.of(undefined as any)).isEmpty()    // true (undefined collapses to empty)
+```
 
 ##### Optional filter
 
