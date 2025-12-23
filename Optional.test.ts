@@ -82,6 +82,29 @@ describe('Optional', () => {
         });
     });
 
+    describe('getOr', () => {
+        it('should return the value for a non-empty Optional', () => {
+            const optional = Optional.of('test');
+            expect(optional.getOr(() => 5)).toBe('test');
+        });
+
+        it('should return the default value for an empty Optional', () => {
+            const optional = Optional.empty<string>();
+            expect(optional.getOr(() => 5)).toBe(5);
+        })
+    })
+
+    describe('getOrUndefined', () => {
+        it('should return the value for a non-empty Optional', () => {
+            const optional = Optional.of('test');
+            expect(optional.getOrUndefined()).toBe('test');
+        });
+        it('should return undefined for an empty Optional', () => {
+            const optional = Optional.empty<string>();
+            expect(optional.getOrUndefined()).toBeUndefined();
+        });
+    })
+
     describe('map', () => {
         it('should apply the mapper function to the value in a non-empty Optional', () => {
             const optional = Optional.of(5).map(value => value * 2);
@@ -94,6 +117,19 @@ describe('Optional', () => {
             expect(optional.isEmpty()).toBe(true);
         });
     });
+
+    describe('flatMap', () => {
+        it('should apply the mapper function to the value in a non-empty Optional', () => {
+            const optional = Optional.of<number>(5).flatmap(value => Optional.of(value * 2));
+            expect(optional.isNotEmpty()).toBe(true);
+            expect(optional.getOrElse(0)).toBe(10);
+        });
+
+        it('should return an empty Optional when mapping over an empty Optional', () => {
+            const optional = Optional.empty<number>().flatmap(value => Optional.of(value * 2));
+            expect(optional.isEmpty()).toBe(true);
+        });
+    })
 
     describe('filter', () => {
         it('should return the same Optional if the predicate matches', () => {

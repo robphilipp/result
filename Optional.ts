@@ -117,6 +117,39 @@ export class Optional<T> {
     }
 
     /**
+     * Return the contained value if present, otherwise return the result of the provided supplier.
+     * @param defaultSupplier The supplier of the default value to return if the optional is empty.
+     * @return The contained value if present, otherwise the result of the supplier.
+     * @example
+     * ```ts
+     * Optional.of(10).getOr(() => 20); // 10
+     * Optional.empty<number>().getOr(() => 20); // 20
+     * ```
+     */
+    getOr<U>(defaultSupplier: () => U): T | U {
+        if (this.isNotEmpty()) {
+            return this.value as T
+        }
+        return defaultSupplier()
+    }
+
+    /**
+     * Return the contained value if present, otherwise return `undefined`.
+     * @return The contained value if present, otherwise `undefined`.
+     * @example
+     * ```ts
+     * Optional.of(10).getOrUndefined(); // 10
+     * Optional.empty<number>().getOrUndefined(); // undefined
+     * ```
+     */
+    getOrUndefined(): T | undefined {
+        if (this.isNotEmpty()) {
+            return this.value as T
+        }
+        return undefined
+    }
+
+    /**
      * Return the contained value if present, otherwise throw the error produced by `supplier`.
      * @param supplier A function that produces an error to throw if the optional is empty.
      * @return The contained value if present, otherwise throws the error produced by `supplier`.
@@ -151,6 +184,25 @@ export class Optional<T> {
     map<U>(mapper: (value: T) => U): Optional<U> {
         if (this.isNotEmpty()) {
             return Optional.ofNullable<U>(mapper(this.value as T))
+        }
+        return Optional.empty<U>()
+    }
+
+    /**
+     * Transform the contained value with `mapper` if present, otherwise return the provided default.
+     * @param mapper A function that transforms the contained value.
+     * @return An `Optional` containing the result of the transformation if the optional is not empty,
+     * otherwise the provided default.
+     * @template U The type of the result of the transformation.
+     * @example
+     * ```ts
+     * const optional = Optional.of<number>(5).flatmap(value => Optional.of(value * 2))    // 10
+     * const optional = Optional.empty<number>().flatmap(value => Optional.of(value * 2))  // empty
+     * ```
+     */
+    flatmap<U>(mapper: (value: T) => Optional<U>): Optional<U> {
+        if (this.isNotEmpty()) {
+            return mapper(this.value as T)
         }
         return Optional.empty<U>()
     }
