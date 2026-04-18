@@ -21,7 +21,9 @@
     "README.md",
     "CHANGES.md",
     "LICENSE",
-    "index.ts"
+    "index.ts",
+    "Result.ts",
+    "Optional.ts"
   ],
   "browserslist": {
     "production": [
