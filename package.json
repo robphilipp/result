@@ -1,6 +1,6 @@
 {
   "name": "result-fn",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Result",
   "author": "Rob Philipp",
   "homepage": "https://github.com/robphilipp/result",
@@ -20,7 +20,8 @@
     "dist",
     "README.md",
     "CHANGES.md",
-    "LICENSE"
+    "LICENSE",
+    "index.ts"
   ],
   "browserslist": {
     "production": [

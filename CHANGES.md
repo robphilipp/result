@@ -1,5 +1,9 @@
 # version history for `Result`
 
+## version 0.5.1
+
+Added `index.ts` to the package to (hopefully) remove "failed to parse source map" warnings when using the library.
+
 ## version 0.5.0
 
 1. Adds `Optional.flatMap` method
