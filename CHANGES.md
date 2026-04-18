@@ -1,5 +1,9 @@
 # version history for `Result`
 
+## version 0.5.2
+
+Added `Result.ts` and `Optional.ts` to the package to (hopefully) remove "failed to parse source map" warnings when using the library.
+
 ## version 0.5.1
 
 Added `index.ts` to the package to (hopefully) remove "failed to parse source map" warnings when using the library.
