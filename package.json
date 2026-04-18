@@ -20,7 +20,8 @@
     "dist",
     "README.md",
     "CHANGES.md",
-    "LICENSE"
+    "LICENSE",
+    "index.ts"
   ],
   "browserslist": {
     "production": [
