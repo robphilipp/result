@@ -1,4 +1,4 @@
-export type {ToString, Result} from './Result';
+export {ToString, Result} from './Result';
 export {
     successResult, failureResult,
     resultFromAll, resultFromAny,
