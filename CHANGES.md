@@ -1,5 +1,9 @@
 # version history for `Result`
 
+## version 0.5.3
+
+Removed the `type` in the export of the `Result` class in index.ts.
+
 ## version 0.5.2
 
 Added `Result.ts` and `Optional.ts` to the package to (hopefully) remove "failed to parse source map" warnings when using the library.
