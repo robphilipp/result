@@ -1,6 +1,6 @@
 {
   "name": "result-fn",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Result",
   "author": "Rob Philipp",
   "homepage": "https://github.com/robphilipp/result",
@@ -14,7 +14,7 @@
   "scripts": {
     "prepare": "npm run build",
     "build": "tsc",
-    "test": "jest Result.test.ts Optional.test.ts"
+    "test": "jest *.test.ts"
   },
   "files": [
     "dist",
